@@ -202,7 +202,7 @@
       ${row('<b>Total des points</b>', { v: wUs.length, txt: `<b>${wUs.length}</b>`, list: wUs }, { v: wThem.length, txt: `<b>${wThem.length}</b>`, list: wThem }, true)}
       </tbody></table>
       <p class="muted small">Le total des fautes d'une équipe = les points « faute adverse » de l'autre équipe. Les aces subis comptent comme « ace » et les attaques contrées comme « contre » pour l'équipe qui marque.
-      Adversaire : service ← notre réception, réception ← notre service (# et + non distingués), attaque ← nos contres / défenses + actions adverses saisies, défense et contre ← nos attaques. Ses fautes de filet et de passe sont dans « Autres ».</p>`;
+      Adversaire : service ← notre réception, réception ← notre service (# et + non distingués), attaque ← nos contres / défenses + actions adverses saisies, défense ← nos attaques. Ses fautes de filet et de passe sont dans « Autres ».</p>`;
   }
   function renderDist() {
     const all = VS.setsAnalysis(events);
@@ -297,7 +297,7 @@
     S: 'Service : # ace · + positif (récep. adverse en difficulté) · ! moyen · - négatif (récep. adverse bonne) · / retour direct (récep. adverse mauvaise, relance pour nous) · = faute.',
     R: 'Réception : # parfaite · + positive · ! moyenne · - négative · / renvoyée · = ace subi. Côté adversaire, # et + ne sont pas distingués (déduit de notre service).',
     A: 'Attaque : # point · + adversaire en difficulté · ! remise en jeu · - défendue facilement · / contrée · = faute.',
-    B: 'Contre : # point · + positif · ! neutre · - négatif · / contre-out · = faute. Côté adversaire : ses points de contre, déduits de nos attaques contrées.',
+    B: 'Contre : # point · + positif · ! neutre · - négatif · / contre-out · = faute.',
     D: 'Défense : # parfaite · + positive · ! moyenne · - négative · / renvoi direct · = faute. Côté adversaire : déduite de nos attaques (# et + non distingués).',
     X: 'Relance (reprise d\'une balle facile renvoyée par l\'adversaire) : # parfaite · + bonne · ! moyenne · - négative · / renvoyée directement · = faute.',
   };

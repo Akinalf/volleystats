@@ -318,7 +318,6 @@
       if (e.skill === 'R' && OPP_SERVE[e.grade]) mk('S', OPP_SERVE[e.grade]);
       else if (e.skill === 'S' && OPP_REC[e.grade]) mk('R', OPP_REC[e.grade]);
       else if (e.skill === 'A' && OPP_DEF[e.grade]) mk('D', OPP_DEF[e.grade]);
-      else if (e.skill === 'A' && e.grade === '/') mk('B', '#');
       else if (e.skill === 'B' && OPP_ATT_B[e.grade]) mk('A', OPP_ATT_B[e.grade]);
       else if (e.skill === 'D' && OPP_ATT_D[e.grade]) {
         // Une défense juste après notre contre touché correspond à la même attaque adverse.
