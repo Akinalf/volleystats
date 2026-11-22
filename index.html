@@ -1,0 +1,116 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>VolleyStats — Matchs</title>
+<link rel="stylesheet" href="assets/app.css">
+<style>
+  .home{max-width:1100px;margin:0 auto;padding:20px 16px 40px;display:flex;flex-direction:column;gap:14px}
+  .m-row{display:grid;grid-template-columns:110px 1fr 150px 110px auto;gap:12px;align-items:center;padding:10px 8px;border-bottom:1px solid var(--line)}
+  .m-row:last-child{border-bottom:none}
+  .m-row .opp{font-weight:700;font-size:15px}
+  .res{font:700 16px Consolas,monospace}
+  .res.win{color:#86efac}.res.loss{color:#fca5a5}
+  .vs-modal input[type=text],.vs-modal input[type=date]{margin-bottom:8px}
+</style>
+</head>
+<body>
+<main class="home">
+  <div class="sect-title">
+    <div><h1>Mes matchs</h1><p class="muted" style="margin:0">Saisie des statistiques par boutons à partir de la vidéo, pour notre équipe et l'adversaire.</p></div>
+    <div class="head-actions">
+      <button class="vs-btn primary" id="btnNew">Nouveau match</button>
+      <label class="vs-btn">Importer (.json)<input type="file" id="imp" accept=".json,application/json" hidden></label>
+      <button class="vs-btn ghost" id="btnDemo">Créer un match d'exemple</button>
+    </div>
+  </div>
+  <div class="panel" id="list"></div>
+  <div class="panel">
+    <h3>Comment ça marche</h3>
+    <ol class="muted" style="margin:6px 0 0;padding-left:20px;line-height:1.7">
+      <li>Créez un match et son effectif (numéros, noms et postes). Chaque fiche conserve sa propre liste ; vous pouvez aussi modifier le modèle pour les futurs matchs ou l’effectif d’un match depuis son bouton « Effectif du match ».</li>
+      <li>Choisissez la composition du 1er set et qui sert en premier.</li>
+      <li>Regardez la vidéo sur votre second écran. Dans la <b>Saisie</b>, cliquez une case de la grille <b>joueur × action</b>, puis la qualité ou, pour une passe, sa zone cible. La qualité d'une passe n'est pas saisie.</li>
+      <li>Le score, les sets, les rotations et le service se calculent tout seuls.</li>
+      <li>Les actions du rallye apparaissent dans le panneau « Échange en cours ». Corrigez une action depuis le journal ; le tableau de bord présente les statistiques, le comparatif adverse et la distribution du passeur (sans clips vidéo).</li>
+    </ol>
+    <p class="muted small" style="margin:10px 0 0">La vidéo est regardée sur votre autre écran : VolleyStats ne l'intègre pas et ne conserve ni fichier vidéo ni lien vers ses instants. Les données restent dans ce navigateur. Pensez à <b>exporter</b> régulièrement vos matchs (.json) pour les sauvegarder ou les transférer.</p>
+  </div>
+</main>
+<script src="assets/core.js"></script>
+<script>
+(function () {
+  VS.header('home', null);
+  const $ = (id) => document.getElementById(id);
+
+  function render() {
+    const list = VS.listMatches();
+    if (!list.length) { $('list').innerHTML = '<div class="empty-note">Aucun match pour l\'instant. Cliquez sur « Nouveau match » ou créez un match d\'exemple pour découvrir l\'outil.</div>'; return; }
+    $('list').innerHTML = list.map((m) => {
+      const st = VS.replay(m).state;
+      const n = m.events.filter((e) => VS.isAction(e)).length;
+      const res = st.setScores.length ? `<span class="res ${st.setsUs > st.setsThem ? 'win' : st.setsThem > st.setsUs ? 'loss' : ''}">${st.setsUs} – ${st.setsThem}</span>${st.over ? '' : ' <span class="muted small">en cours</span>'}` : '<span class="muted">non commencé</span>';
+      return `<div class="m-row"><span class="muted">${VS.esc(VS.fmtDate(m.date))}</span>
+        <div><div class="opp">vs ${VS.esc(m.opp)}</div><div class="muted small">${VS.esc(m.comp || '')}${st.setScores.length ? ' · ' + st.setScores.map((s) => s.us + '–' + s.them).join(', ') : ''}</div></div>
+        <div>${res}</div><span class="muted small">${n} action(s)</span>
+        <div class="head-actions"><a class="vs-btn sm primary" href="saisie.html?match=${m.id}">Saisie</a><a class="vs-btn sm" href="tableau-de-bord.html?match=${m.id}">Tableau de bord</a>
+          <button class="vs-btn sm ghost" data-exp="${m.id}" title="Exporter le match (sauvegarde .json)">Exporter</button><button class="vs-btn sm danger" data-del="${m.id}" title="Supprimer">×</button></div></div>`;
+    }).join('');
+  }
+  $('list').addEventListener('click', (e) => {
+    const b = e.target.closest('button'); if (!b) return;
+    if (b.dataset.exp) { const m = VS.getMatch(b.dataset.exp); VS.downloadFile(`match-${m.date}-${m.opp.replace(/[^\w-]+/g, '_')}.json`, JSON.stringify(m, null, 1), 'application/json'); }
+    if (b.dataset.del) { const m = VS.getMatch(b.dataset.del); if (confirm(`Supprimer le match contre ${m.opp} ? (pensez à l'exporter avant)`)) { VS.deleteMatch(m.id); render(); } }
+  });
+  $('btnNew').onclick = () => {
+    let roster = VS.baseRoster();
+    const cfg = { lineup: VS.defaultLineup(roster), libero: VS.defaultLibero(roster), weServeFirst: true };
+    VS.modal('Nouveau match', `
+      <label class="muted small">Adversaire</label><input type="text" id="nOpp" placeholder="ex. VC Montagne">
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px"><div><label class="muted small">Date</label><input type="date" id="nDate" value="${new Date().toISOString().slice(0, 10)}"></div>
+      <div><label class="muted small">Compétition (facultatif)</label><input type="text" id="nComp" placeholder="ex. Championnat R2"></div></div>
+      <div class="head-actions" style="margin-top:8px"><button type="button" class="vs-btn sm" id="editNewRoster">Modifier l’effectif de ce match</button><span class="muted small" id="newRosterCount">${roster.length} joueurs</span></div>
+      <div id="newRosterEditor" hidden><p class="muted small" style="margin:8px 0 4px">Une ligne par joueur : numéro;nom;poste</p><textarea id="newRosterText" rows="8" spellcheck="false">${VS.esc(VS.rosterText(roster))}</textarea><button type="button" class="vs-btn sm" id="applyNewRoster">Appliquer à ce match</button></div>
+      <h3 style="margin-top:8px">Set 1</h3><div id="newLineupForm">${VS.lineupForm(cfg, roster)}</div>`, [
+      { label: 'Annuler', cls: 'ghost' },
+      { label: 'Créer et commencer la saisie', cls: 'primary', onClick: (w) => {
+        const set1 = VS.readLineupForm(w, roster); if (!set1) return false;
+        const m = VS.newMatch({ opp: w.querySelector('#nOpp').value.trim() || 'Adversaire', date: w.querySelector('#nDate').value, comp: w.querySelector('#nComp').value.trim(), set1, roster });
+        VS.saveMatch(m); location.href = 'saisie.html?match=' + m.id;
+      } },
+    ]);
+    const wrap = document.querySelector('.vs-modal-wrap');
+    wrap.querySelector('#editNewRoster').onclick = () => { wrap.querySelector('#newRosterEditor').hidden = !wrap.querySelector('#newRosterEditor').hidden; };
+    wrap.querySelector('#applyNewRoster').onclick = () => {
+      const parsed = VS.parseRoster(wrap.querySelector('#newRosterText').value);
+      if (parsed.length < 6) { VS.toast('Il faut au moins 6 joueurs', 'error'); return; }
+      const prevLineup = cfg.lineup.slice();
+      roster = parsed;
+      const valid = new Set(roster.map((p) => p.num));
+      cfg.lineup = prevLineup.every((n) => valid.has(n)) && new Set(prevLineup).size === 6 ? prevLineup : VS.defaultLineup(roster);
+      if (!valid.has(cfg.libero) || cfg.lineup.includes(cfg.libero)) cfg.libero = VS.defaultLibero(roster);
+      const label = VS.lineupForm(cfg, roster);
+      wrap.querySelector('#newRosterCount').textContent = roster.length + ' joueurs';
+      wrap.querySelector('#newRosterText').value = VS.rosterText(roster);
+      wrap.querySelector('#newLineupForm').innerHTML = label;
+      VS.toast('Effectif propre à ce match mis à jour', 'ok');
+    };
+    setTimeout(() => document.getElementById('nOpp').focus(), 50);
+  };
+  $('btnDemo').onclick = () => { const m = VS.createDemoMatch(); VS.saveMatch(m); render(); VS.toast('Match d\'exemple créé (complet, 4 sets)', 'ok'); };
+  $('imp').addEventListener('change', () => {
+    const f = $('imp').files[0]; if (!f) return;
+    f.text().then((txt) => {
+      const m = JSON.parse(txt);
+      if (!m || !m.id || !Array.isArray(m.events) || !Array.isArray(m.sets)) throw new Error('format');
+      if (VS.getMatch(m.id) && !confirm('Ce match existe déjà : le remplacer par la version importée ?')) return;
+      VS.saveMatch(m); render(); VS.toast('Match importé : ' + m.opp, 'ok');
+    }).catch(() => VS.toast('Fichier invalide (export VolleyStats .json attendu)', 'error'));
+    $('imp').value = '';
+  });
+  render();
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,11 @@
+# Réglages locaux Claude Code
+.claude/settings.local.json
+
+# Fichiers système
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Exports de matchs (données personnelles)
+match-*.json
+match-*.csv

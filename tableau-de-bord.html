@@ -1,0 +1,347 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Tableau de bord — VolleyStats</title>
+<link rel="stylesheet" href="assets/app.css">
+<style>
+  .wrap{padding:8px 16px 30px;display:flex;flex-direction:column;gap:14px}
+  .match{display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap}
+  .match .res{font:700 30px Consolas,monospace}
+  .match .res .us{color:#93c5fd}.match .res .them{color:#fca5a5}
+  .setchips{display:flex;gap:6px;flex-wrap:wrap}
+  .setchips span{font:13px Consolas,monospace;background:var(--panel2);border-radius:6px;padding:3px 8px}
+  .setchips .w{border-left:3px solid #3b82f6}.setchips .l{border-left:3px solid #ef4444}
+  .kpis{display:grid;grid-template-columns:repeat(auto-fill,minmax(175px,1fr));gap:10px}
+  .kpi{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:12px}
+  .kpi .v{font:700 26px/1.1 Consolas,monospace;color:var(--accent)}
+  .kpi .l{font-size:13px;font-weight:600;margin-top:2px}
+  .kpi .s{font-size:12px;color:var(--muted)}
+  .grid2{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+  @media (max-width:1100px){.grid2{grid-template-columns:1fr}}
+  .vs-table td.sep,.vs-table th.sep{border-left:1px solid var(--line)}
+  select.src{background:var(--panel2);color:var(--text);border:1px solid var(--line);border-radius:7px;padding:6px;max-width:320px}
+  .legend{display:flex;gap:10px;flex-wrap:wrap;font-size:12px;color:var(--muted);margin-bottom:6px}
+  .legend i{width:10px;height:10px;border-radius:3px;display:inline-block;margin-right:4px;vertical-align:-1px}
+  .dist td.z{text-align:center;min-width:74px}
+  .dist td.z small{display:block;font-size:11px;color:var(--muted)}
+  .court-mini{display:grid;grid-template-columns:repeat(3,1fr);gap:4px;background:#1b3f63;border:2px solid #cbd5e1;border-top:4px solid #f8fafc;border-radius:4px;padding:5px;max-width:260px}
+  .court-mini div{border-radius:4px;padding:6px 2px;text-align:center;font:700 14px Consolas,monospace}
+  .court-mini small{display:block;font:11px "Segoe UI",sans-serif;color:#cbd5e1}
+  .dist-wrap{display:grid;grid-template-columns:minmax(0,1fr) 280px;gap:16px;align-items:start}
+  @media (max-width:1100px){.dist-wrap{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+<div class="page-head">
+  <div>
+    <h1>Tableau de bord du match</h1>
+    <p class="muted">Statistiques du match, ratios par qualité, analyse des passes et rotations.</p>
+  </div>
+  <div class="head-actions">
+    <label class="muted small">Match <select class="src" id="matchSel"></select></label>
+    <label class="muted small">Set <select class="src" id="fSet"></select></label>
+    <button class="vs-btn sm" id="btnCsv">Exporter CSV</button>
+    <button class="vs-btn sm" onclick="window.print()">Imprimer / PDF</button>
+  </div>
+</div>
+<div class="wrap" id="wrap">
+  <div class="panel match" id="match"></div>
+  <div class="kpis" id="kpis"></div>
+  <div class="panel">
+    <div class="panel-h"><h3>Répartition par qualité</h3><span class="muted small">Pour chaque qualité : nombre ÷ total des actions du joueur dans ce geste</span></div>
+    <div class="tabs" id="gTabs"></div>
+    <div class="table-wrap" id="grades"></div>
+    <div class="head-actions" style="margin-top:8px;justify-content:space-between"><span class="muted small" id="gNote"></span><button class="vs-btn sm" id="btnGradesCsv">Exporter ce tableau (CSV)</button></div>
+  </div>
+  <div class="panel"><div class="panel-h"><h3>Synthèse par joueur</h3><span class="muted small">Eff. attaque = (points − fautes − contrées) / attaques · Passe : nombre de passes vers la zone cible</span></div><div class="table-wrap" id="table"></div></div>
+  <div class="panel"><div class="panel-h"><h3>Comparatif Nous / <span id="oppTitle"></span></h3><span class="muted small">Stats adverses déduites de nos actions + actions adverses saisies</span></div><div class="table-wrap" id="cmp"></div></div>
+  <div class="panel"><div class="panel-h"><h3>Distribution du passeur selon la qualité de réception</h3><label class="muted small">Passeur <select class="src" id="setterSel"></select></label></div><div id="dist"></div></div>
+  <div class="grid2">
+    <div class="panel"><h3>Efficacité en attaque</h3><div id="chAtt"></div></div>
+    <div class="panel"><h3>Qualité de réception</h3><div class="legend" id="recLegend"></div><div id="chRec"></div></div>
+    <div class="panel"><h3>Évolution du score</h3><div id="chScore"></div></div>
+    <div class="panel"><h3>D'où viennent les points</h3><div id="chPts"></div></div>
+    <div class="panel" style="grid-column:1/-1"><h3>Rotations <span class="muted small">(position du passeur)</span></h3><div id="chRot"></div></div>
+  </div>
+</div>
+<script src="assets/core.js"></script>
+<script>
+(function () {
+  const $ = (id) => document.getElementById(id);
+  const matches = VS.listMatches();
+  let m = VS.currentMatch();
+  VS.header('dash', m);
+  if (!m) { $('wrap').innerHTML = '<div class="panel empty-note">Aucun match. <a href="index.html">Créez un match</a> ou un match d\'exemple.</div>'; return; }
+  const roster = VS.useMatchRoster(m);
+  VS.saveMatch(m);
+  VS.save('current', m.id);
+  $('matchSel').innerHTML = matches.map((x) => `<option value="${x.id}" ${x.id === m.id ? 'selected' : ''}>${VS.esc(VS.fmtDate(x.date))} · vs ${VS.esc(x.opp)}</option>`).join('');
+  $('matchSel').onchange = () => { location.href = 'tableau-de-bord.html?match=' + $('matchSel').value; };
+
+  const R = VS.replay(m), st = R.state;
+  const allEv = R.events.filter((e) => !e.ignored);
+  let events = allEv;
+  $('oppTitle').textContent = m.opp;
+  $('fSet').innerHTML = '<option value="all">Tous</option>' + [...new Set(allEv.map((e) => e.set))].map((s) => `<option value="${s}">Set ${s}</option>`).join('');
+
+  // Les statistiques sont présentées sans lien vers une vidéo externe.
+  const clip = (list, label, content, tag) => tag === 'span' ? `<span>${content}</span>` : `<td class="">${content}</td>`;
+  const isUs = (e) => VS.isAction(e) && VS.teamOf(e) === 'us';
+  const pick = (f) => events.filter((e) => isUs(e) && f(e));
+
+  function render() {
+    const fs = $('fSet').value;
+    events = fs === 'all' ? allEv : allEv.filter((e) => e.set === +fs);
+    const S = VS.computeStats(events, 'us');
+    const oppEv = VS.deriveOpp(events);
+    const O = VS.computeStats(oppEv, 'them');
+    lastS = S; lastOppEv = oppEv;
+    renderMatch(); renderKpis(S, O); renderGrades(); renderTable(S); renderCmp(S, O, oppEv); renderDist(); renderAtt(S); renderRec(S); renderScore(); renderPts(); renderRot();
+  }
+  function renderMatch() {
+    $('match').innerHTML = `<div><div class="muted small">${VS.esc(VS.fmtDate(m.date))}${m.comp ? ' · ' + VS.esc(m.comp) : ''} · ${m.events.filter(VS.isAction).length} action(s) saisie(s)</div>
+      <div class="res"><span class="us">Nous ${st.setsUs}</span> <span class="muted">–</span> <span class="them">${st.setsThem} ${VS.esc(m.opp)}</span></div></div>
+      <div class="setchips">${st.setScores.map((s) => `<span class="${s.us > s.them ? 'w' : 'l'}">Set ${s.set} : ${s.us}–${s.them}</span>`).join('')}${st.over ? '' : `<span>Set ${st.set} en cours : ${st.us}–${st.them}</span>`}</div>`;
+  }
+  const kpi = (v, l, s) => `<div class="kpi"><div class="v">${v}</div><div class="l">${l}</div><div class="s">${s}</div></div>`;
+  function renderKpis(S, O) {
+    const T = S.team.d;
+    const pts = events.filter((e) => e.winner);
+    const so = pts.filter((e) => e.weServed === false), bp = pts.filter((e) => e.weServed === true);
+    const soW = so.filter((e) => e.winner === 'us').length, bpW = bp.filter((e) => e.winner === 'us').length;
+    const won = pts.filter((e) => e.winner === 'us').length;
+    const oppErr = events.filter((e) => e.winner === 'us' && VS.teamOf(e) === 'them').length;
+    $('kpis').innerHTML = [
+      kpi(VS.pct(T.attEff), 'Efficacité attaque', `${T.kill} pts / ${T.attTot} attaques · réussite ${VS.pct(T.killPct)}`),
+      kpi(VS.pct(T.recPosPct), 'Réception positive', `${T.recPos}/${T.recTot} · parfaite ${VS.pct(T.recPerfPct)} · ${T.recErr} aces subis`),
+      kpi(`${T.ace} / ${T.srvErr}`, 'Aces / fautes de service', `${T.srvTot} services · eff. ${VS.pct(T.srvEff)}`),
+      kpi(T.blkPts, 'Points de contre', `${T.blkTot} contres touchés`),
+      kpi(`${won} / ${pts.length - won}`, 'Points gagnés / perdus', `dont ${oppErr} fautes adverses · ${T.errs} fautes directes`),
+      kpi(VS.pct(so.length ? soW / so.length : null), 'Side-out', `${soW}/${so.length} en réception · break ${VS.pct(bp.length ? bpW / bp.length : null)} (${bpW}/${bp.length})`),
+    ].join('');
+  }
+  function renderTable(S) {
+    if (!S.players.length) { $('table').innerHTML = '<div class="empty-note">Aucune action saisie pour ce filtre.</div>'; return; }
+    const rows = S.players.slice().sort((a, b) => b.d.pts - a.d.pts || a.num - b.num);
+    const line = (p, num) => {
+      const d = p.d, who = num ? VS.pname(num, roster) : 'Équipe';
+      const f = (s, g) => (e) => (num == null || e.player === num) && e.skill === s && g.includes(e.grade);
+      return `<tr><td>${num ? `<b>#${num}</b> ${VS.esc(p.name)} <span class="muted small">${p.pos || ''}</span>` : '<b>Total équipe</b>'}</td>
+        <td><b>${d.pts}</b></td><td>${d.errs}</td>
+        <td class="sep">${d.srvTot || '–'}</td>${clip(pick(f('S', '#')), who + ' — aces', d.ace)}${clip(pick(f('S', '=')), who + ' — fautes de service', d.srvErr)}<td>${VS.pct(d.srvEff)}</td>
+        <td class="sep">${d.recTot || '–'}</td><td>${VS.pct(d.recPosPct)}</td><td>${VS.pct(d.recPerfPct)}</td>${clip(pick(f('R', '=')), who + ' — aces subis', d.recErr)}
+        <td class="sep">${d.setTot || '–'}</td>
+        <td class="sep">${d.attTot || '–'}</td>${clip(pick(f('A', '#')), who + ' — attaques gagnantes', d.kill)}${clip(pick(f('A', '=')), who + ' — fautes d\'attaque', d.attErr)}${clip(pick(f('A', '/')), who + ' — attaques contrées', d.attBlk)}<td>${VS.pct(d.killPct)}</td><td><b>${VS.pct(d.attEff)}</b></td>
+        ${clip(pick(f('B', '#')), who + ' — points de contre', d.blkPts).replace('<td class="', '<td class="sep ')}
+        <td class="sep">${d.digTot || '–'}</td><td>${VS.pct(d.digPosPct)}</td><td class="sep">${d.relanceTot || '–'}</td><td>${VS.pct(d.relancePosPct)}</td></tr>`;
+    };
+    $('table').innerHTML = `<table class="vs-table"><thead>
+      <tr><th></th><th colspan="2" style="text-align:center">Bilan</th><th class="sep" colspan="4" style="text-align:center">Service</th><th class="sep" colspan="4" style="text-align:center">Réception</th><th class="sep" style="text-align:center">Passe</th><th class="sep" colspan="6" style="text-align:center">Attaque</th><th class="sep" style="text-align:center">Contre</th><th class="sep" colspan="2" style="text-align:center">Défense</th><th class="sep" colspan="2" style="text-align:center">Relance</th></tr>
+      <tr><th>Joueur</th><th>Pts</th><th>Fautes</th><th class="sep">Tot</th><th>Aces</th><th>Fautes</th><th>Eff.</th><th class="sep">Tot</th><th>Pos.</th><th>Parf.</th><th>Aces subis</th><th class="sep">Tot</th><th class="sep">Tot</th><th>Pts</th><th>Fautes</th><th>Contrées</th><th>Réussite</th><th>Eff.</th><th class="sep">Pts</th><th class="sep">Tot</th><th>Pos.</th><th class="sep">Tot</th><th>Pos.</th></tr></thead>
+      <tbody>${rows.map((p) => line(p, p.num)).join('')}${line(S.team, null)}</tbody></table>`;
+  }
+  /** Comment chaque point a été marqué : attaque, ace, contre, faute adverse, non détaillé */
+  function pointType(e) {
+    if (e.kind === 'point') return 'nd';
+    const own = VS.teamOf(e) === e.winner;          // l'action vient de l'équipe qui marque
+    if (own) return e.skill === 'S' ? 'ace' : e.skill === 'B' ? 'bloc' : e.skill === 'A' ? 'att' : 'faute';
+    // l'action vient de l'équipe qui perd le point
+    if (e.grade === '=' && e.skill === 'R') return 'ace';
+    if (e.skill === 'A' && e.grade === '/') return 'bloc';
+    if ((e.skill === 'D' && e.grade === '=') || (e.skill === 'B' && e.grade === '/')) return 'att';
+    return 'faute';
+  }
+  function renderCmp(S, O, oppEv) {
+    const pc = (n, d) => (d ? n / d : null);
+    const fmtPct = (v, n, d) => (v == null ? '–' : `${VS.pct(v)} <span class="muted small">${n}/${d}</span>`);
+    /* Une ligne du comparatif, avec sa valeur et son détail éventuel. */
+    const row = (label, A, B, higherBetter) => {
+      const ca = higherBetter != null && A.v != null && B.v != null && A.v !== B.v ? ((A.v > B.v) === higherBetter ? 'better' : 'worse') : '';
+      const cb = ca === 'better' ? 'worse' : ca === 'worse' ? 'better' : '';
+      const cell = (X, cls, who) => (X.list && X.list.length ? clip(X.list, `${who} — ${label}`, X.txt).replace('<td class="', `<td class="${cls} `) : `<td class="${cls}">${X.txt}</td>`);
+      return `<tr><td>${label}</td>${cell(A, ca, 'Nous')}${cell(B, cb, m.opp)}</tr>`;
+    };
+    const head = (t) => `<tr><td colspan="3" style="padding-top:14px;color:var(--accent);font-weight:700;border-bottom:1px solid var(--line)">${t}</td></tr>`;
+    const qual = (c, skill) => { const n = c[skill]['#'] + c[skill]['+'], d = c[skill].tot; return { v: pc(n, d), txt: fmtPct(pc(n, d), n, d) }; };
+    const eff = (c) => { const A = c.A, n = A['#'] - A['='] - A['/']; return { v: pc(n, A.tot), txt: A.tot ? `${VS.pct(n / A.tot)} <span class="muted small">(${A['#']} − ${A['=']} − ${A['/']}) / ${A.tot}</span>` : '–' }; };
+
+    // Fautes directes (points donnés à l'adversaire sur une faute)
+    const raw = events.filter((e) => VS.isAction(e));
+    const flt = (team, skills) => raw.filter((e) => VS.teamOf(e) === team && e.grade === '=' && skills.includes(e.skill));
+    const FAULTS = [['Service', ['S'], ['S']], ['Attaque (filet, dehors)', ['A'], ['A']], ['Contre (filet)', ['B'], []], ['Autres (passe, filet, 4 touches, pied, relance…)', ['F', 'E', 'X'], ['F', 'E', 'X']]];
+    const cnt = (l) => ({ v: l.length, txt: l.length, list: l });
+    let totUs = [], totThem = [];
+    const faultRows = FAULTS.map(([label, su, st]) => {
+      const a = raw.filter((e) => VS.teamOf(e) === 'us' && e.grade === '=' && su.includes(e.skill));
+      const b = st.length ? raw.filter((e) => VS.teamOf(e) === 'them' && e.grade === '=' && st.includes(e.skill)) : null;
+      totUs = totUs.concat(a); if (b) totThem = totThem.concat(b);
+      return row(label, cnt(a), b ? cnt(b) : { v: null, txt: '<span class="muted">compté dans « Autres »</span>' }, false);
+    }).join('');
+
+    // Points marqués par type
+    const pts = events.filter((e) => e.winner);
+    const TYPES = [['att', 'Attaque'], ['ace', 'Ace'], ['bloc', 'Contre (bloc)'], ['faute', 'Faute adverse'], ['nd', 'Non détaillé']];
+    const by = (w, k) => pts.filter((e) => e.winner === w && pointType(e) === k);
+    const wUs = pts.filter((e) => e.winner === 'us'), wThem = pts.filter((e) => e.winner === 'them');
+    const ptCell = (l, tot) => ({ v: l.length, txt: `${l.length} <span class="muted small">${tot ? Math.round((100 * l.length) / tot) : 0} %</span>`, list: l });
+    const ptRows = TYPES.map(([k, label]) => { const a = by('us', k), b = by('them', k); return a.length || b.length || k !== 'nd' ? row(label, ptCell(a, wUs.length), ptCell(b, wThem.length), true) : ''; }).join('');
+
+    $('cmp').innerHTML = `<table class="vs-table cmp" style="max-width:760px"><thead><tr><th>Indicateur</th><th>Nous</th><th>${VS.esc(m.opp)}</th></tr></thead><tbody>
+      ${head('Qualité service / réception')}
+      ${row('Service positif (# et +)', qual(S.team, 'S'), qual(O.team, 'S'), true)}
+      ${row('Réception positive (# et +)', qual(S.team, 'R'), qual(O.team, 'R'), true)}
+      ${head('Attaque')}
+      ${row('Efficacité attaque (points − fautes − contrées) / attaques', eff(S.team), eff(O.team), true)}
+      ${head('Fautes directes')}
+      ${faultRows}
+      ${row('<b>Total des fautes</b>', Object.assign(cnt(totUs), { txt: `<b>${totUs.length}</b>` }), Object.assign(cnt(totThem), { txt: `<b>${totThem.length}</b>` }), false)}
+      ${head('Points marqués')}
+      ${ptRows}
+      ${row('<b>Total des points</b>', { v: wUs.length, txt: `<b>${wUs.length}</b>`, list: wUs }, { v: wThem.length, txt: `<b>${wThem.length}</b>`, list: wThem }, true)}
+      </tbody></table>
+      <p class="muted small">Le total des fautes d'une équipe = les points « faute adverse » de l'autre équipe. Les aces subis comptent comme « ace » et les attaques contrées comme « contre » pour l'équipe qui marque.
+      Adversaire : service ← notre réception, réception ← notre service (# et + non distingués), attaque ← nos contres / défenses + actions adverses saisies. Ses fautes de filet et de passe sont dans « Autres ».</p>`;
+  }
+  function renderDist() {
+    const all = VS.setsAnalysis(events);
+     const setters = {}; all.forEach((x) => (setters[x.set.player] = (setters[x.set.player] || 0) + 1));
+    const cur = $('setterSel').value;
+    const opts = Object.entries(setters).sort((a, b) => b[1] - a[1]);
+    $('setterSel').innerHTML = '<option value="all">Tous</option>' + opts.map(([n, c]) => `<option value="${n}">${VS.esc(VS.pname(+n, roster))} (${c})</option>`).join('');
+    if (cur && (cur === 'all' || setters[cur])) $('setterSel').value = cur; else if (opts.length) $('setterSel').value = opts[0][0];
+    const fsel = $('setterSel').value;
+    const list = all.filter((x) => x.set.target && (fsel === 'all' || x.set.player === +fsel));
+    if (!list.length) { $('dist').innerHTML = '<div class="empty-note">Aucune passe avec zone visée pour ce filtre.</div>'; return; }
+    const ctxs = [['R#', 'Réception #  parfaite'], ['R+', 'Réception +  positive'], ['R!', 'Réception !  moyenne'], ['R-', 'Réception -  négative'], ['T', 'Transition (après défense / contre)'], ['X', 'Autre']];
+    const Z = VS.TARGET_ORDER;
+    const cell = (sub, label) => {
+      const tot = sub.length;
+      return Z.map((z) => { const s = sub.filter((x) => x.set.target === z); const p = tot ? s.length / tot : 0;
+        const bg = `background:rgba(255,183,3,${(p * 0.75).toFixed(2)})`;
+        return s.length ? clip(s.map((x) => x.set), `${label} → zone ${z}`, `${Math.round(p * 100)} %<small>${s.length}</small>`).replace('<td class="', `<td style="${bg}" class="z `) : '<td class="z muted">–</td>'; }).join('');
+    };
+    const rows = ctxs.map(([k, l]) => { const sub = list.filter((x) => x.ctx === k); return sub.length ? `<tr><td>${l}</td><td>${sub.length}</td>${cell(sub, l)}</tr>` : ''; }).join('');
+    const totRow = `<tr><td><b>Toutes les passes</b></td><td><b>${list.length}</b></td>${cell(list, 'Toutes les passes')}</tr>`;
+    const eff = Z.map((z) => {
+      const s = list.filter((x) => x.set.target === z), at = s.filter((x) => x.attack).map((x) => x.attack);
+      const k = at.filter((a) => a.grade === '#').length, err = at.filter((a) => a.grade === '=' || a.grade === '/').length;
+      return { z, n: s.length, at, k, err, kp: at.length ? k / at.length : null, eff: at.length ? (k - err) / at.length : null };
+    });
+    const totals = list.length;
+    const courtCells = [4, 3, 2, 5, 6, 1].map((z) => { const n = list.filter((x) => x.set.target === z).length, p = totals ? n / totals : 0; return `<div style="background:rgba(255,183,3,${(0.1 + p * 0.8).toFixed(2)})">${Math.round(p * 100)} %<small>Zone ${z}</small></div>`; }).join('');
+    $('dist').innerHTML = `<div class="dist-wrap"><div class="table-wrap"><table class="vs-table dist"><thead><tr><th>Situation</th><th>Passes</th>${Z.map((z) => `<th style="text-align:center">Zone ${z}<br><span class="small">${VS.esc(VS.TARGETS[z])}</span></th>`).join('')}</tr></thead><tbody>${rows}${totRow}</tbody></table></div>
+      <div><div class="muted small" style="margin-bottom:6px">Répartition globale (filet en haut)</div><div class="court-mini">${courtCells}</div></div></div>
+      <h3 style="margin-top:14px">Efficacité de l'attaque selon la zone de passe</h3>
+      <table class="vs-table" style="max-width:820px"><thead><tr><th>Zone</th><th>Passes</th><th>Attaques</th><th>Points</th><th>Fautes + contrées</th><th>Réussite</th><th>Efficacité</th></tr></thead><tbody>
+      ${eff.filter((x) => x.n).map((x) => `<tr><td>Zone ${x.z} · ${VS.esc(VS.TARGETS[x.z])}</td><td>${x.n}</td><td>${x.at.length}</td>${clip(x.at.filter((a) => a.grade === '#'), `Attaques gagnantes après passe en zone ${x.z}`, x.k)}${clip(x.at.filter((a) => a.grade === '=' || a.grade === '/'), `Attaques ratées après passe en zone ${x.z}`, x.err)}<td>${VS.pct(x.kp)}</td><td><b>${VS.pct(x.eff)}</b></td></tr>`).join('')}
+      </tbody></table><p class="muted small">La situation est déterminée par notre action juste avant la passe dans l'échange. L'attaque prise en compte est celle qui suit immédiatement la passe.</p>`;
+  }
+  function hbars(items, fmt, max) {
+    return items.map((it) => `<div class="bar-row"><span>${VS.esc(it.label)}</span><div class="bar">${it.parts.map((p) => `<i style="width:${Math.max(0, (p.v / max) * 100)}%;background:${p.c}" title="${VS.esc(p.t || '')}"></i>`).join('')}</div><span class="v">${fmt(it)}</span></div>`).join('') || '<div class="empty-note">Pas assez de données.</div>';
+  }
+  function renderAtt(S) {
+    const list = S.players.filter((p) => p.d.attTot >= 3).sort((a, b) => b.d.attEff - a.d.attEff);
+    $('chAtt').innerHTML = hbars(list.map((p) => ({ label: `#${p.num} ${p.name}`, v: p.d.attEff, n: p.d.attTot, parts: [{ v: Math.max(0, p.d.attEff), c: p.d.attEff >= 0.3 ? '#22c55e' : p.d.attEff >= 0.15 ? '#eab308' : '#ef4444' }] })), (it) => `${Math.round(it.v * 100)} % · ${it.n}`, 0.7) + '<p class="muted small">Repères courants en club : &gt; 30 % très bon, 15–30 % correct, &lt; 15 % à travailler (joueurs avec au moins 3 attaques).</p>';
+  }
+  function renderRec(S) {
+    $('recLegend').innerHTML = VS.GRADE_ORDER.map((g) => `<span><i style="background:${VS.GRADES[g].color}"></i>${VS.esc(g)} ${VS.esc(VS.hint('R', g))}</span>`).join('');
+    const list = S.players.filter((p) => p.R.tot >= 3).sort((a, b) => b.R.tot - a.R.tot);
+    $('chRec').innerHTML = hbars(list.map((p) => ({ label: `#${p.num} ${p.name}`, p, parts: VS.GRADE_ORDER.map((g) => ({ v: p.R[g] / p.R.tot, c: VS.GRADES[g].color, t: `${g} : ${p.R[g]}` })) })), (it) => `${VS.pct(it.p.d.recPosPct)} · ${it.p.R.tot}`, 1);
+  }
+  function renderScore() {
+    const sr = {};
+    events.filter((e) => e.winner).forEach((e) => { (sr[e.set] = sr[e.set] || []).push(e); });
+    const sets = Object.keys(sr);
+    if (!sets.length) { $('chScore').innerHTML = '<div class="empty-note">Aucun point.</div>'; return; }
+    const W = 600, H = 150, P = 24, colors = ['#ffb703', '#3b82f6', '#22c55e', '#ec4899', '#a855f7'];
+    const maxPts = Math.max(25, ...sets.map((s) => sr[s].length));
+    const maxD = Math.max(5, ...sets.flatMap((s) => sr[s].map((p) => Math.abs(p.us - p.them))));
+    const y = (d) => H / 2 - (d / maxD) * (H / 2 - P / 2);
+    const lines = sets.map((s, i) => `<polyline fill="none" stroke="${colors[i % 5]}" stroke-width="2" points="${[{ us: 0, them: 0 }].concat(sr[s]).map((p, k) => `${P + (k / maxPts) * (W - 2 * P)},${y(p.us - p.them)}`).join(' ')}"/>`).join('');
+    $('chScore').innerHTML = `<svg viewBox="0 0 ${W} ${H}" style="width:100%;height:auto;background:#0a1222;border-radius:8px"><line x1="${P}" y1="${H / 2}" x2="${W - P}" y2="${H / 2}" stroke="#334155"/>${lines}<text x="${P}" y="14" fill="#93c5fd" font-size="11">Nous devant</text><text x="${P}" y="${H - 6}" fill="#fca5a5" font-size="11">${VS.esc(m.opp)} devant</text></svg>
+      <div class="legend" style="margin-top:6px">${sets.map((s, i) => `<span><i style="background:${colors[i % 5]}"></i>Set ${s}</span>`).join('')}</div>`;
+  }
+  function renderPts() {
+    const pts = events.filter((e) => e.winner);
+    const cat = (w) => { const map = {}; pts.filter((e) => e.winner === w).forEach((e) => { const r = VS.pointReason(e); (map[r] = map[r] || []).push(e); }); return Object.entries(map).sort((a, b) => b[1].length - a[1].length); };
+    const won = cat('us'), lost = cat('them');
+    const tw = won.reduce((s, x) => s + x[1].length, 0), tl = lost.reduce((s, x) => s + x[1].length, 0);
+    const mx = Math.max(1, ...won.map((x) => x[1].length), ...lost.map((x) => x[1].length));
+    const b = (l, tot, col) => l.map(([n, evs]) => `<div class="bar-row"><span>${VS.esc(n)}</span><div class="bar"><i style="width:${(100 * evs.length) / mx}%;background:${col}"></i></div><span class="v">${clip(evs, n, evs.length, 'span')} · ${tot ? Math.round((100 * evs.length) / tot) : 0} %</span></div>`).join('');
+    $('chPts').innerHTML = `<div class="muted small">Points gagnés (${tw})</div>${b(won, tw, '#3b82f6')}<div class="muted small" style="margin-top:10px">Points perdus (${tl})</div>${b(lost, tl, '#ef4444')}`;
+  }
+  function renderRot() {
+    const pts = events.filter((e) => e.winner);
+    const rows = [1, 6, 5, 4, 3, 2].map((r) => {
+      const l = pts.filter((e) => e.srot === r), rec = l.filter((e) => !e.weServed), srv = l.filter((e) => e.weServed);
+      const won = l.filter((e) => e.winner === 'us').length;
+      return { r, n: l.length, won, bal: 2 * won - l.length, rec: rec.length, recW: rec.filter((e) => e.winner === 'us').length, srv: srv.length, srvW: srv.filter((e) => e.winner === 'us').length, l };
+    });
+    if (!pts.length) { $('chRot').innerHTML = '<div class="empty-note">Aucun point.</div>'; return; }
+    const best = Math.max(...rows.map((x) => x.bal)), worst = Math.min(...rows.map((x) => x.bal));
+    $('chRot').innerHTML = `<table class="vs-table" style="max-width:900px"><thead><tr><th>Rotation</th><th>Points joués</th><th>Gagnés</th><th>Perdus</th><th>Bilan</th><th title="Points gagnés quand l'adversaire sert">Side-out</th><th title="Points gagnés sur notre service">Break</th></tr></thead><tbody>
+      ${rows.map((x) => `<tr style="${x.n && x.bal === best ? 'background:rgba(34,197,94,.08)' : x.n && x.bal === worst ? 'background:rgba(239,68,68,.08)' : ''}"><td>Passeur en P${x.r}</td><td>${x.n}</td><td>${x.won}</td>${clip(x.l.filter((e) => e.winner === 'them'), `Points perdus — passeur en P${x.r}`, x.n - x.won)}<td><b style="color:${x.bal >= 0 ? '#86efac' : '#fca5a5'}">${x.bal >= 0 ? '+' : ''}${x.bal}</b></td><td>${x.rec ? Math.round((100 * x.recW) / x.rec) + ' %' : '–'} <span class="muted small">${x.recW}/${x.rec}</span></td><td>${x.srv ? Math.round((100 * x.srvW) / x.srv) + ' %' : '–'} <span class="muted small">${x.srvW}/${x.srv}</span></td></tr>`).join('')}
+      </tbody></table><p class="muted small">Side-out : points gagnés quand l'adversaire sert. Break : points gagnés sur notre service. Vert = meilleure rotation, rouge = la plus faible.</p>`;
+  }
+
+  $('btnCsv').onclick = () => VS.exportCSV(m, allEv);
+  $('fSet').addEventListener('change', render);
+  $('setterSel').addEventListener('change', renderDist);
+
+  /* ---------- Répartition par qualité (ratios) ---------- */
+  let gSkill = 'A', lastS = null, lastOppEv = [], gRows = [];
+  const G_TABS = [['S', 'Service'], ['R', 'Réception'], ['A', 'Attaque'], ['B', 'Contre'], ['D', 'Défense'], ['X', 'Relance']];
+  const G_NOTES = {
+    S: 'Service : # ace · + réception adverse en difficulté · ! moyenne · - réception adverse parfaite · / retour direct · = faute.',
+    R: 'Réception : # parfaite · + positive · ! moyenne · - négative · / renvoyée · = ace subi. Côté adversaire, # et + ne sont pas distingués (déduit de notre service).',
+    A: 'Attaque : # point · + défense adverse en difficulté · ! remise en jeu · - défendue facilement · / contrée · = faute.',
+    B: 'Contre : # point de contre · + touche positive · ! neutre · - négative · / contre-out · = faute de filet.',
+    D: 'Défense : # parfaite · + positive · ! moyenne · - difficile · / renvoi direct · = balle tombée.',
+    X: 'Relance : # parfaite / contrôlée · + bonne · ! moyenne · - difficile · / contrée ou renvoyée · = faute.',
+  };
+  $('gTabs').innerHTML = G_TABS.map(([k, l]) => `<button class="tab ${k === gSkill ? 'active' : ''}" data-sk="${k}">${l}</button>`).join('');
+  $('gTabs').addEventListener('click', (e) => {
+    const b = e.target.closest('[data-sk]'); if (!b) return;
+    gSkill = b.dataset.sk;
+    document.querySelectorAll('#gTabs .tab').forEach((x) => x.classList.toggle('active', x === b));
+    renderGrades();
+  });
+  function renderGrades() {
+    if (!lastS) return;
+    const sk = gSkill, label = VS.SKILLS[sk].label, S = lastS;
+    const O = VS.computeStats(lastOppEv, 'them');
+    gRows = S.players.filter((p) => p[sk].tot).sort((a, b) => b[sk].tot - a[sk].tot)
+      .map((p) => ({ html: `<b>#${p.num}</b> ${VS.esc(p.name)} <span class="muted small">${p.pos || ''}</span>`, text: VS.pname(p.num, roster), c: p[sk], evs: pick((e) => e.player === p.num && e.skill === sk) }));
+    gRows.push({ html: '<b>Total équipe</b>', text: 'Total équipe', c: S.team[sk], evs: pick((e) => e.skill === sk), cls: 'tot' });
+    if (O.team[sk].tot) gRows.push({ html: `<b class="tag-them">${VS.esc(m.opp)}</b> <span class="muted small">(déduit)</span>`, text: m.opp, c: O.team[sk], evs: lastOppEv.filter((e) => e.skill === sk) });
+    const alpha = (p) => Math.round(20 + p * 200).toString(16).padStart(2, '0');
+    const body = gRows.map((r) => {
+      const tot = r.c.tot;
+      const cells = VS.GRADE_ORDER.map((g) => {
+        const n = r.c[g];
+        if (!n) return '<td class="z muted">–</td>';
+        const p = n / tot;
+        return clip(r.evs.filter((e) => e.grade === g), `${r.text} — ${label} ${g} (${VS.hint(sk, g)})`, `${Math.round(p * 100)} %<small>${n}</small>`)
+          .replace('<td class="', `<td style="background:${VS.GRADES[g].color}${alpha(p)}" class="z `);
+      }).join('');
+      const bar = `<div class="bar" style="min-width:140px">${VS.GRADE_ORDER.map((g) => `<i style="width:${tot ? (100 * r.c[g]) / tot : 0}%;background:${VS.GRADES[g].color}" title="${VS.esc(g)} : ${r.c[g]}"></i>`).join('')}</div>`;
+      return `<tr style="${r.cls === 'tot' ? 'border-top:2px solid var(--line)' : ''}"><td>${r.html}</td><td><b>${tot}</b></td>${cells}<td>${bar}</td></tr>`;
+    }).join('');
+    $('grades').innerHTML = gRows.length > 1 || S.team[sk].tot ? `<table class="vs-table dist"><thead><tr><th>Joueur</th><th>Total</th>${VS.GRADE_ORDER.map((g) => `<th style="text-align:center">${VS.gchip(g)}<br><span class="small">${VS.esc(VS.hint(sk, g))}</span></th>`).join('')}<th>Répartition</th></tr></thead><tbody>${body}</tbody></table>`
+      : `<div class="empty-note">Aucune action « ${label} » pour ce filtre.</div>`;
+    $('gNote').textContent = G_NOTES[sk];
+  }
+  $('btnGradesCsv').onclick = () => {
+    if (!gRows.length) return;
+    const sk = gSkill;
+    VS.downloadCSV(`repartition-${VS.SKILLS[sk].label.toLowerCase()}-${m.date}.csv`,
+      ['Joueur', 'Total'].concat(VS.GRADE_ORDER.flatMap((g) => [`${g} ${VS.hint(sk, g)} (nb)`, `${g} (%)`])),
+      gRows.map((r) => [r.text, r.c.tot].concat(VS.GRADE_ORDER.flatMap((g) => [r.c[g], r.c.tot ? Math.round((100 * r.c[g]) / r.c.tot) : '']))));
+  };
+  render();
+})();
+</script>
+</body>
+</html>
