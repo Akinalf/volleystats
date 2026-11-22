@@ -202,7 +202,7 @@
       ${row('<b>Total des points</b>', { v: wUs.length, txt: `<b>${wUs.length}</b>`, list: wUs }, { v: wThem.length, txt: `<b>${wThem.length}</b>`, list: wThem }, true)}
       </tbody></table>
       <p class="muted small">Le total des fautes d'une équipe = les points « faute adverse » de l'autre équipe. Les aces subis comptent comme « ace » et les attaques contrées comme « contre » pour l'équipe qui marque.
-      Adversaire : service ← notre réception, réception ← notre service (# et + non distingués), attaque ← nos contres / défenses + actions adverses saisies. Ses fautes de filet et de passe sont dans « Autres ».</p>`;
+      Adversaire : service ← notre réception, réception ← notre service (# et + non distingués), attaque ← nos contres / défenses + actions adverses saisies, défense et contre ← nos attaques. Ses fautes de filet et de passe sont dans « Autres ».</p>`;
   }
   function renderDist() {
     const all = VS.setsAnalysis(events);
@@ -294,12 +294,12 @@
   let gSkill = 'A', lastS = null, lastOppEv = [], gRows = [];
   const G_TABS = [['S', 'Service'], ['R', 'Réception'], ['A', 'Attaque'], ['B', 'Contre'], ['D', 'Défense'], ['X', 'Relance']];
   const G_NOTES = {
-    S: 'Service : # ace · + réception adverse en difficulté · ! moyenne · - réception adverse parfaite · / retour direct · = faute.',
+    S: 'Service : # ace · + positif (récep. adverse en difficulté) · ! moyen · - négatif (récep. adverse bonne) · / retour direct (récep. adverse mauvaise, relance pour nous) · = faute.',
     R: 'Réception : # parfaite · + positive · ! moyenne · - négative · / renvoyée · = ace subi. Côté adversaire, # et + ne sont pas distingués (déduit de notre service).',
-    A: 'Attaque : # point · + défense adverse en difficulté · ! remise en jeu · - défendue facilement · / contrée · = faute.',
-    B: 'Contre : # point de contre · + touche positive · ! neutre · - négative · / contre-out · = faute de filet.',
-    D: 'Défense : # parfaite · + positive · ! moyenne · - difficile · / renvoi direct · = balle tombée.',
-    X: 'Relance : # parfaite / contrôlée · + bonne · ! moyenne · - difficile · / contrée ou renvoyée · = faute.',
+    A: 'Attaque : # point · + adversaire en difficulté · ! remise en jeu · - défendue facilement · / contrée · = faute.',
+    B: 'Contre : # point · + positif · ! neutre · - négatif · / contre-out · = faute. Côté adversaire : ses points de contre, déduits de nos attaques contrées.',
+    D: 'Défense : # parfaite · + positive · ! moyenne · - négative · / renvoi direct · = faute. Côté adversaire : déduite de nos attaques (# et + non distingués).',
+    X: 'Relance (reprise d\'une balle facile renvoyée par l\'adversaire) : # parfaite · + bonne · ! moyenne · - négative · / renvoyée directement · = faute.',
   };
   $('gTabs').innerHTML = G_TABS.map(([k, l]) => `<button class="tab ${k === gSkill ? 'active' : ''}" data-sk="${k}">${l}</button>`).join('');
   $('gTabs').addEventListener('click', (e) => {

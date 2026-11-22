@@ -20,13 +20,23 @@
     '/': { label: 'Contré / renvoyé', color: '#9333ea', cls: 'g-slash' },
     '=': { label: 'Faute', color: '#dc2626', cls: 'g-eq' },
   };
+  /* Libellé de chaque qualité selon l'action (les symboles stockés ne changent pas). */
   const HINTS = {
-    S: { '#': 'Ace', '+': 'Récep. adverse en difficulté', '!': 'Moyen', '-': 'Récep. adverse parfaite', '/': 'Retour direct', '=': 'Faute' },
+    S: { '#': 'Ace', '+': 'Positif', '!': 'Moyen', '-': 'Négatif', '/': 'Retour direct', '=': 'Faute' },
     R: { '#': 'Parfaite', '+': 'Positive', '!': 'Moyenne', '-': 'Négative', '/': 'Renvoyée', '=': 'Ace subi' },
-    A: { '#': 'Point', '+': 'Défense adv. en difficulté', '!': 'Remise en jeu', '-': 'Défendue facilement', '/': 'Contrée', '=': 'Faute' },
-    B: { '#': 'Point de contre', '+': 'Touche positive', '!': 'Neutre', '-': 'Négative', '/': 'Contre-out', '=': 'Faute de filet' },
-    D: { '#': 'Parfaite', '+': 'Positive', '!': 'Moyenne', '-': 'Difficile', '/': 'Renvoi direct', '=': 'Balle tombée' },
-    X: { '#': 'Parfaite / contrôlée', '+': 'Bonne', '!': 'Moyenne', '-': 'Difficile', '/': 'Contrée ou renvoyée', '=': 'Faute' },
+    A: { '#': 'Point', '+': 'Adversaire en difficulté', '!': 'Remise en jeu', '-': 'Défendue facilement', '/': 'Contrée', '=': 'Faute' },
+    B: { '#': 'Point', '+': 'Positif', '!': 'Neutre', '-': 'Négatif', '/': 'Contre-out', '=': 'Faute' },
+    D: { '#': 'Parfaite', '+': 'Positive', '!': 'Moyenne', '-': 'Négative', '/': 'Renvoi direct', '=': 'Faute' },
+    X: { '#': 'Parfaite', '+': 'Bonne', '!': 'Moyenne', '-': 'Négative', '/': 'Renvoyée directement', '=': 'Faute' },
+  };
+  /* Ce que chaque qualité implique pour l'adversaire (info-bulles). */
+  const OPP_HINTS = {
+    S: { '#': 'Ace subi par l\'adversaire → point pour nous', '+': 'Récep. adverse en difficulté', '!': 'Récep. adverse moyenne', '-': 'Récep. adverse bonne (parfaite ou positive)', '/': 'Récep. adverse mauvaise, relance pour notre équipe', '=': 'Point pour l\'adversaire' },
+    R: { '#': 'Service adverse négatif', '+': 'Service adverse négatif', '!': 'Service adverse moyen', '-': 'Service adverse positif', '/': 'Service adverse : retour direct', '=': 'Ace adverse → point pour l\'adversaire' },
+    A: { '#': 'Défense adverse ratée → point pour nous', '+': 'Défense adverse négative', '!': 'Défense adverse moyenne', '-': 'Défense adverse positive', '/': 'Point de contre adverse', '=': 'Point pour l\'adversaire' },
+    B: { '#': 'Attaque adverse contrée → point pour nous', '+': 'Attaque adverse défendue facilement', '!': 'Attaque adverse remise en jeu', '-': 'Attaque adverse positive', '/': 'Attaque adverse gagnante (contre-out)', '=': 'Point pour l\'adversaire' },
+    D: { '#': 'Attaque adverse défendue facilement', '+': 'Attaque adverse défendue facilement', '!': 'Attaque adverse remise en jeu', '-': 'Attaque adverse positive', '/': 'Attaque adverse positive', '=': 'Attaque adverse gagnante → point pour l\'adversaire' },
+    X: { '#': 'Pas de déduction pour l\'adversaire', '+': 'Pas de déduction pour l\'adversaire', '!': 'Pas de déduction pour l\'adversaire', '-': 'Pas de déduction pour l\'adversaire', '/': 'Pas de déduction pour l\'adversaire', '=': 'Point pour l\'adversaire' },
   };
   const POSITIONS = { P: 'Passeur', R4: 'Réceptionneur-attaquant', C: 'Central', PT: 'Pointu', L: 'Libéro' };
   const TARGETS = { 4: 'Avant gauche', 3: 'Centre', 2: 'Avant droit', 5: 'Arrière gauche', 6: 'Pipe (arr. centre)', 1: 'Arrière droit' };
@@ -291,7 +301,8 @@
   }
 
   /* Actions adverses déduites de nos actions (+ actions adverses saisies) */
-  const OPP_SERVE = { '#': '-', '+': '!', '!': '!', '-': '+', '/': '/', '=': '#' };     // ← notre réception
+  const OPP_SERVE = { '#': '-', '+': '-', '!': '!', '-': '+', '/': '/', '=': '#' };     // ← notre réception
+  const OPP_DEF = { '#': '=', '+': '-', '!': '!', '-': '+' };                           // ← notre attaque
   const OPP_REC = { '#': '=', '+': '-', '!': '!', '-': '+', '/': '/' };                // ← notre service
   const OPP_ATT_B = { '#': '/', '+': '-', '!': '!', '-': '+', '/': '#' };               // ← notre contre
   const OPP_ATT_D = { '#': '-', '+': '-', '!': '!', '-': '+', '/': '+', '=': '#' };     // ← notre défense
@@ -306,6 +317,8 @@
       if (teamOf(e) === 'them') { out.push(Object.assign({}, e)); prev = e; return; }
       if (e.skill === 'R' && OPP_SERVE[e.grade]) mk('S', OPP_SERVE[e.grade]);
       else if (e.skill === 'S' && OPP_REC[e.grade]) mk('R', OPP_REC[e.grade]);
+      else if (e.skill === 'A' && OPP_DEF[e.grade]) mk('D', OPP_DEF[e.grade]);
+      else if (e.skill === 'A' && e.grade === '/') mk('B', '#');
       else if (e.skill === 'B' && OPP_ATT_B[e.grade]) mk('A', OPP_ATT_B[e.grade]);
       else if (e.skill === 'D' && OPP_ATT_D[e.grade]) {
         // Une défense juste après notre contre touché correspond à la même attaque adverse.
@@ -345,6 +358,7 @@
   /* Affichage                                                              */
   /* ====================================================================== */
   const hint = (skill, grade) => (HINTS[skill] && HINTS[skill][grade]) || '';
+  const oppHint = (skill, grade) => (OPP_HINTS[skill] && OPP_HINTS[skill][grade]) || '';
   const gchip = (g) => (GRADES[g] ? `<span class="g ${GRADES[g].cls}">${esc(g)}</span>` : '');
   function describeParts(e, roster) {
     const kind = e.kind || 'action';
@@ -554,6 +568,6 @@
     esc, uid, pct, fmtDate, load, save, listMatches, getMatch, saveMatch, deleteMatch, currentMatch,
     baseRoster, useMatchRoster, player, pname, rosterText, parseRoster, defaultLineup, defaultLibero, lineupForm, readLineupForm, newMatch,
     teamOf, isAction, pointWinner, pointReason, replay, computeStats, deriveOpp, setsAnalysis,
-    hint, gchip, describe, describeText, toast, modal, header, downloadFile, downloadCSV, exportCSV, createDemoMatch,
+    hint, oppHint, gchip, describe, describeText, toast, modal, header, downloadFile, downloadCSV, exportCSV, createDemoMatch,
   };
 })(window);

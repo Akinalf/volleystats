@@ -76,7 +76,8 @@
     <button class="vs-btn sm" data-pt="them" title="Ajouter un point non détaillé au score adverse">+1 Adversaire</button>
     <button class="vs-btn sm ghost" id="btnSub">Remplacement</button>
     <button class="vs-btn sm ghost" id="btnEndSet">Terminer le set</button>
-    <button class="vs-btn sm" id="btnUndo">Annuler</button>
+    <button class="vs-btn sm" id="btnUndo" title="Annuler la dernière saisie (Ctrl+Z)">Annuler</button>
+    <button class="vs-btn sm ghost" id="btnRedo" title="Rétablir la saisie annulée (Ctrl+Y)" disabled>Rétablir</button>
   </div>
 </div>
 
@@ -124,6 +125,7 @@
   const roster = VS.useMatchRoster(m);
   let R, st, view = VS.load('playerView', 'rotation'), tab = 'log', configOpen = false, flashId = null;
   let selected = null; // {player,skill}
+  let redoStack = [];  // saisies annulées, rétablies avec Ctrl+Y
 
   const ACTIONS = [
     ['S', 'Service', 'S'], ['R', 'Récep.', 'R'], ['E', 'Passe', 'P'],
@@ -197,7 +199,18 @@
     $('zones').innerHTML = VS.TARGET_ORDER.map((z) => `<button class="z-btn" data-zone="${z}" title="Zone ${z} · ${VS.TARGETS[z]}"><b>${z}</b><span>${VS.esc(VS.TARGETS[z])}</span></button>`).join('');
     $('oppButtons').innerHTML = VS.OPP_ACTIONS.map((o) => `<button class="vs-btn ${o.cls}" data-opp="${o.id}" title="${VS.esc(o.label)}">${VS.esc(o.label.replace(' adverse', ' adv.').replace(' (sans touche)', ''))}</button>`).join('');
   }
+  /* Les libellés des qualités suivent l'action sélectionnée ; l'info-bulle dit ce que ça donne pour l'adversaire. */
+  function renderQualityLabels() {
+    const sk = selected && VS.hint(selected.skill, '#') ? selected.skill : null;
+    document.querySelectorAll('#qualities [data-quality]').forEach((b) => {
+      const g = b.dataset.quality, base = QUALITY.find((q) => q[0] === g)[1];
+      const label = sk ? VS.hint(sk, g) : base;
+      b.querySelector('span').textContent = label;
+      b.title = sk ? `${g} · ${VS.SKILLS[sk].label} ${label.toLowerCase()}\nPour l'adversaire : ${VS.oppHint(sk, g)}` : `${g} · ${base}`;
+    });
+  }
   function renderSelection() {
+    renderQualityLabels();
     const el = $('selStatus'), clear = $('clearSel');
     clear.disabled = !selected;
     el.classList.toggle('wait', !!selected);
@@ -211,7 +224,7 @@
   }
   function appendEvent(ev) {
     if (locked()) return;
-    m.events.push(ev); flashId = ev.id; VS.saveMatch(m); refresh();
+    redoStack = []; m.events.push(ev); flashId = ev.id; VS.saveMatch(m); refresh();
     const last = R.events[R.events.length - 1];
     if (last && last.setEnd) VS.toast(`Set ${last.set} ${last.us > last.them ? 'gagné' : 'perdu'} ${last.us}–${last.them}`, 'ok');
   }
@@ -251,7 +264,11 @@
   }
   function undo() {
     if (configOpen || !m.events.length) return;
-    m.events.pop(); selected = null; VS.saveMatch(m); refresh(); VS.toast('Dernière saisie annulée.');
+    redoStack.push(m.events.pop()); selected = null; VS.saveMatch(m); refresh(); VS.toast('Dernière saisie annulée (Ctrl+Y pour rétablir).');
+  }
+  function redo() {
+    if (configOpen || !redoStack.length) return;
+    const ev = redoStack.pop(); m.events.push(ev); flashId = ev.id; selected = null; VS.saveMatch(m); refresh(); VS.toast('Saisie rétablie.');
   }
 
   function renderBoard() {
@@ -263,6 +280,7 @@
     $('setChips').innerHTML = st.setScores.map((s) => `<span>${s.us}–${s.them}</span>`).join('');
     $('board').classList.toggle('finished', st.over);
     document.querySelectorAll('[data-pt],#btnSub,#btnEndSet,#btnUndo,#oppButtons button,#matrix button').forEach((b) => { if (b.id !== 'btnUndo') b.disabled = st.over; });
+    $('btnRedo').disabled = !redoStack.length;
   }
   function groupEvents() {
     const groups = new Map();
@@ -312,7 +330,7 @@
     if ((ev.kind || 'action') === 'action' && VS.teamOf(ev) === 'us') {
       body = `<label class="muted small">Joueur<select id="edPlayer">${rosterOpts(ev.player)}</select></label>
         <label class="muted small">Action<select id="edSkill">${skillOpts}<option value="F" ${ev.skill === 'F' ? 'selected' : ''}>Faute diverse</option></select></label>
-        <label class="muted small" id="edQualityWrap">Qualité<select id="edGrade">${VS.GRADE_ORDER.map((g) => `<option value="${g}" ${g === ev.grade ? 'selected' : ''}>${g} · ${VS.GRADES[g].label}</option>`).join('')}</select></label>
+        <label class="muted small" id="edQualityWrap">Qualité<select id="edGrade">${VS.GRADE_ORDER.map((g) => `<option value="${g}" ${g === ev.grade ? 'selected' : ''}>${g} · ${VS.esc(VS.hint(ev.skill, g) || VS.GRADES[g].label)}</option>`).join('')}</select></label>
         <label class="muted small" id="edZoneWrap">Cible de passe<select id="edZone">${VS.TARGET_ORDER.map((z) => `<option value="${z}" ${z === ev.target ? 'selected' : ''}>Zone ${z} · ${VS.TARGETS[z]}</option>`).join('')}</select></label>`;
     } else if ((ev.kind || 'action') === 'action' && VS.teamOf(ev) === 'them') {
       body = `<label class="muted small" style="grid-column:1/-1">Action adverse<select id="edOpp">${VS.OPP_ACTIONS.map((o) => `<option value="${o.id}" ${o.skill === ev.skill && o.grade === ev.grade ? 'selected' : ''}>${VS.esc(o.label)}</option>`).join('')}</select></label>`;
@@ -320,7 +338,7 @@
       body = `<label class="muted small" style="grid-column:1/-1">Point attribué à<select id="edWinner"><option value="us" ${ev.winner === 'us' ? 'selected' : ''}>Nous</option><option value="them" ${ev.winner === 'them' ? 'selected' : ''}>${VS.esc(m.opp)}</option></select></label>`;
     } else body = `<p class="muted" style="grid-column:1/-1">${VS.esc(VS.describeText(ev))}. Cette entrée système peut être supprimée ou remplacée par une action.</p>`;
     const modal = VS.modal('Corriger une saisie', `<p class="muted small">La correction peut modifier le score et les rotations des échanges suivants.</p><div class="modal-form">${body}</div>`, [
-      { label: 'Supprimer', cls: 'danger', onClick: () => { m.events.splice(ix, 1); VS.saveMatch(m); refresh(); VS.toast('Saisie supprimée.'); } },
+      { label: 'Supprimer', cls: 'danger', onClick: () => { m.events.splice(ix, 1); redoStack = []; VS.saveMatch(m); refresh(); VS.toast('Saisie supprimée.'); } },
       { label: 'Annuler', cls: 'ghost' },
       { label: 'Enregistrer', cls: 'primary', onClick: (w) => {
         const updated = Object.assign({}, ev);
@@ -334,12 +352,15 @@
         }
         if (w.querySelector('#edOpp')) { const o = VS.OPP_ACTIONS.find((x) => x.id === w.querySelector('#edOpp').value); updated.skill = o.skill; updated.grade = o.grade; updated.team = 'them'; updated.player = null; }
         if (w.querySelector('#edWinner')) updated.winner = w.querySelector('#edWinner').value;
-        m.events[ix] = updated; VS.saveMatch(m); refresh(); VS.toast('Saisie corrigée.');
+        m.events[ix] = updated; redoStack = []; VS.saveMatch(m); refresh(); VS.toast('Saisie corrigée.');
       } },
     ]);
     if ((ev.skill === 'E' || ev.skill === 'F') && modal.el.querySelector('#edSkill')) modal.el.querySelector('#edQualityWrap').hidden = true;
     const skill = modal.el.querySelector('#edSkill');
-    if (skill) skill.addEventListener('change', () => { modal.el.querySelector('#edQualityWrap').hidden = skill.value === 'E' || skill.value === 'F'; modal.el.querySelector('#edZoneWrap').hidden = skill.value !== 'E'; });
+    if (skill) skill.addEventListener('change', () => {
+      modal.el.querySelector('#edQualityWrap').hidden = skill.value === 'E' || skill.value === 'F'; modal.el.querySelector('#edZoneWrap').hidden = skill.value !== 'E';
+      modal.el.querySelectorAll('#edGrade option').forEach((o) => { o.textContent = `${o.value} · ${VS.hint(skill.value, o.value) || VS.GRADES[o.value].label}`; });
+    });
     if (modal.el.querySelector('#edZoneWrap')) modal.el.querySelector('#edZoneWrap').hidden = ev.skill !== 'E';
   }
   function askSetConfig() {
@@ -366,6 +387,16 @@
   $('board').addEventListener('click', (e) => { const b = e.target.closest('[data-pt]'); if (b) addPoint(b.dataset.pt); });
   $('clearSel').onclick = () => { selected = null; renderSelection(); };
   $('btnUndo').onclick = undo;
+  $('btnRedo').onclick = redo;
+  /* Raccourcis : Ctrl+Z annuler, Ctrl+Y ou Ctrl+Maj+Z rétablir, Échap effacer la sélection.
+     Inactifs pendant la saisie dans un champ ou quand une fenêtre est ouverte. */
+  document.addEventListener('keydown', (e) => {
+    if ((e.target instanceof Element && e.target.closest('input,select,textarea,[contenteditable]')) || document.querySelector('.vs-modal-wrap')) return;
+    const k = e.key.toLowerCase(), mod = e.ctrlKey || e.metaKey;
+    if (mod && !e.altKey && k === 'z' && !e.shiftKey) { e.preventDefault(); undo(); }
+    else if (mod && !e.altKey && (k === 'y' || (k === 'z' && e.shiftKey))) { e.preventDefault(); redo(); }
+    else if (k === 'escape' && selected) { selected = null; renderSelection(); }
+  });
   $('btnEndSet').onclick = () => { if (!locked() && confirm(`Terminer le set ${st.set} à ${st.us}–${st.them} ?`)) appendEvent({ id: VS.uid(), kind: 'setend' }); };
   $('btnSub').onclick = () => {
     if (locked()) return;
@@ -386,8 +417,8 @@
     $('journal').hidden = tab !== 'log'; $('quick').hidden = tab !== 'quick'; renderQuick();
   }));
   $('helpGrades').onclick = () => {
-    const rows = VS.GRADE_ORDER.map((g) => `<tr><td>${VS.gchip(g)} ${VS.esc(VS.GRADES[g].label)}</td>${['S','R','A','B','D','X'].map((s) => `<td>${VS.esc(VS.hint(s,g) || '—')}</td>`).join('')}</tr>`).join('');
-    const md = VS.modal('Signification des qualités', `<div class="table-wrap"><table class="vs-table"><thead><tr><th>Valeur</th><th>Serv.</th><th>Récep.</th><th>Attaque</th><th>Contre</th><th>Défense</th><th>Relance</th></tr></thead><tbody>${rows}</tbody></table></div><p class="muted small">Une passe ne reçoit pas de note : on enregistre uniquement sa cible. Une faute de passe est saisie avec le bouton Faute.</p>`, [{ label: 'Fermer' }]);
+    const rows = VS.GRADE_ORDER.map((g) => `<tr><td>${VS.gchip(g)} ${VS.esc(VS.GRADES[g].label)}</td>${['S','R','A','B','D','X'].map((s) => `<td title="Pour l'adversaire : ${VS.esc(VS.oppHint(s,g))}">${VS.esc(VS.hint(s,g) || '—')}</td>`).join('')}</tr>`).join('');
+    const md = VS.modal('Signification des qualités', `<div class="table-wrap"><table class="vs-table"><thead><tr><th>Valeur</th><th>Serv.</th><th>Récep.</th><th>Attaque</th><th>Contre</th><th>Défense</th><th>Relance</th></tr></thead><tbody>${rows}</tbody></table></div><p class="muted small">Survolez une case pour voir ce que la qualité implique pour l'adversaire. Une passe ne reçoit pas de note : on enregistre uniquement sa cible. Une faute de passe est saisie avec le bouton Faute.</p>`, [{ label: 'Fermer' }]);
     md.el.querySelector('.vs-modal').style.width = 'min(1050px,100%)';
   };
   renderStatic(); refresh();
