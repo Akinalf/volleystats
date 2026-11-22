@@ -248,7 +248,8 @@
       appendEvent({ id: VS.uid(), kind: 'action', team: 'us', player: num, skill: 'F', grade: '=' });
       selected = autoSel(); renderSelection(); return;
     }
-    selected = selected && selected.player === num && selected.skill === skill ? null : { player: num, skill };
+    // Recliquer une case déjà sélectionnée la garde (on désélectionne avec Échap ou « Effacer »).
+    selected = { player: num, skill };
     renderSelection();
   }
   function directOpp(id) {
