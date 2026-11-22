@@ -302,7 +302,6 @@
 
   /* Actions adverses déduites de nos actions (+ actions adverses saisies) */
   const OPP_SERVE = { '#': '-', '+': '-', '!': '!', '-': '+', '/': '/', '=': '#' };     // ← notre réception
-  const OPP_DEF = { '#': '=', '+': '-', '!': '!', '-': '+' };                           // ← notre attaque
   const OPP_REC = { '#': '=', '+': '-', '!': '!', '-': '+', '/': '/' };                // ← notre service
   const OPP_ATT_B = { '#': '/', '+': '-', '!': '!', '-': '+', '/': '#' };               // ← notre contre
   const OPP_ATT_D = { '#': '-', '+': '-', '!': '!', '-': '+', '/': '+', '=': '#' };     // ← notre défense
@@ -317,7 +316,6 @@
       if (teamOf(e) === 'them') { out.push(Object.assign({}, e)); prev = e; return; }
       if (e.skill === 'R' && OPP_SERVE[e.grade]) mk('S', OPP_SERVE[e.grade]);
       else if (e.skill === 'S' && OPP_REC[e.grade]) mk('R', OPP_REC[e.grade]);
-      else if (e.skill === 'A' && OPP_DEF[e.grade]) mk('D', OPP_DEF[e.grade]);
       else if (e.skill === 'B' && OPP_ATT_B[e.grade]) mk('A', OPP_ATT_B[e.grade]);
       else if (e.skill === 'D' && OPP_ATT_D[e.grade]) {
         // Une défense juste après notre contre touché correspond à la même attaque adverse.
