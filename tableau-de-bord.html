@@ -209,14 +209,13 @@
     // Passeurs = joueurs au poste P (si personne n'a ce poste, tout le monde compte comme passeur).
     const hasP = roster.some((p) => p.pos === 'P');
     const isSetter = (n) => !hasP || VS.player(n, roster).pos === 'P';
-    // Les passes de transition ne sont pas attribuées de façon fiable à un joueur : elles ne comptent que dans « Tous les joueurs ».
-    const setters = {}; all.forEach((x) => { if (x.ctx !== 'T' && isSetter(x.set.player)) setters[x.set.player] = (setters[x.set.player] || 0) + 1; });
+    const setters = {}; all.forEach((x) => { if (isSetter(x.set.player)) setters[x.set.player] = (setters[x.set.player] || 0) + 1; });
     const cur = $('setterSel').value;
     const opts = Object.entries(setters).sort((a, b) => b[1] - a[1]);
     $('setterSel').innerHTML = '<option value="all">Tous les joueurs</option>' + opts.map(([n, c]) => `<option value="${n}">${VS.esc(VS.pname(+n, roster))} (${c})</option>`).join('');
     if (cur && (cur === 'all' || setters[cur])) $('setterSel').value = cur; else if (opts.length) $('setterSel').value = opts[0][0];
     const fsel = $('setterSel').value;
-    const list = all.filter((x) => x.set.target && (fsel === 'all' || (x.set.player === +fsel && x.ctx !== 'T')));
+    const list = all.filter((x) => x.set.target && (fsel === 'all' || x.set.player === +fsel));
     if (!list.length) { $('dist').innerHTML = '<div class="empty-note">Aucune passe avec zone visée pour ce filtre.</div>'; return; }
     const ctxs = [['R#', 'Passe après réception parfaite'], ['R+', 'Passe après réception bonne'], ['R!', 'Passe après réception moyenne'], ['R-', 'Passe après réception négative'], ['T', 'Passe après défense / contre'], ['X', 'Passe dans une autre situation']];
     const Z = VS.TARGET_ORDER;
@@ -242,7 +241,7 @@
       <h3 style="margin-top:14px">Efficacité de l'attaque selon la zone de passe</h3>
       <div style="display:flex;flex-wrap:wrap;gap:18px 28px;align-items:flex-start"><table class="vs-table" style="max-width:820px;flex:1 1 560px"><thead><tr><th>Zone</th><th>Passes</th><th>Attaques</th><th>Points</th><th>Fautes + contrées</th><th>Réussite</th><th>Efficacité</th></tr></thead><tbody>
       ${eff.filter((x) => x.n).map((x) => `<tr><td>Zone ${x.z} · ${VS.esc(VS.TARGETS[x.z])}</td><td>${x.n}</td><td>${x.at.length}</td>${clip(x.at.filter((a) => a.grade === '#'), `Attaques gagnantes après passe en zone ${x.z}`, x.k)}${clip(x.at.filter((a) => a.grade === '=' || a.grade === '/'), `Attaques ratées après passe en zone ${x.z}`, x.err)}<td>${VS.pct(x.kp)}</td><td><b>${VS.pct(x.eff)}</b></td></tr>`).join('')}
-      </tbody></table>${effChart(eff)}</div><p class="muted small">La situation est déterminée par notre action juste avant la passe dans l'échange. L'attaque prise en compte est celle qui suit immédiatement la passe.${fsel === 'all' ? '' : ' Les passes de transition (après défense / contre) sont exclues pour un joueur précis : choisissez « Tous les joueurs » pour les voir.'}</p>`;
+      </tbody></table>${effChart(eff)}</div><p class="muted small">La situation est déterminée par notre action juste avant la passe dans l'échange. L'attaque prise en compte est celle qui suit immédiatement la passe.</p>`;
   }
   /* Graphique : pour chaque zone, part des attaques en point / jeu continue / faute ou contrée, efficacité au bout. */
   function effChart(eff) {
