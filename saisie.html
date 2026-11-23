@@ -39,6 +39,7 @@
   .quality-grid{display:grid;grid-template-columns:repeat(3,1fr);grid-template-rows:repeat(2,minmax(49px,1fr));gap:5px;flex:1;min-height:100px}
   .quality-grid .q-btn{border:0;border-radius:6px;color:#fff;cursor:pointer;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1px;padding:3px;line-height:1.05;transition:filter .08s,transform .08s}
   .quality-grid .q-btn:hover{filter:brightness(1.2);transform:translateY(-1px)}.quality-grid .q-btn:active{transform:translateY(0)}
+  .quality-grid .q-btn:disabled{filter:grayscale(1) brightness(.6);opacity:.4;cursor:not-allowed;transform:none}
   .q-btn b{font:700 18px Consolas,monospace}.q-btn span{font-size:10px}
   .zone-grid{display:grid;grid-template-columns:repeat(3,1fr);grid-template-rows:repeat(2,minmax(40px,1fr));gap:4px;flex:1;min-height:88px}
   .zone-grid .z-btn{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1px;padding:3px;border:1px solid var(--line);border-radius:5px;background:var(--panel2);color:var(--text);cursor:pointer;line-height:1.05}
@@ -207,6 +208,7 @@
       const label = sk ? VS.hint(sk, g) : base;
       b.querySelector('span').textContent = label;
       b.title = sk ? `${g} · ${VS.SKILLS[sk].label} ${label.toLowerCase()}\nPour l'adversaire : ${VS.oppHint(sk, g)}` : `${g} · ${base}`;
+      b.disabled = !!selected && selected.skill === 'E'; // passe : pas de qualité, seulement une zone
     });
   }
   function renderSelection() {
