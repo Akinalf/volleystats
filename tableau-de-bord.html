@@ -235,9 +235,20 @@
     $('dist').innerHTML = `<div class="dist-wrap"><div class="table-wrap"><table class="vs-table dist"><thead><tr><th>Situation</th><th>Passes</th>${Z.map((z) => `<th style="text-align:center">Zone ${z}<br><span class="small">${VS.esc(VS.TARGETS[z])}</span></th>`).join('')}</tr></thead><tbody>${rows}${totRow}</tbody></table></div>
       <div><div class="muted small" style="margin-bottom:6px">Répartition globale (filet en haut)</div><div class="court-mini">${courtCells}</div></div></div>
       <h3 style="margin-top:14px">Efficacité de l'attaque selon la zone de passe</h3>
-      <table class="vs-table" style="max-width:820px"><thead><tr><th>Zone</th><th>Passes</th><th>Attaques</th><th>Points</th><th>Fautes + contrées</th><th>Réussite</th><th>Efficacité</th></tr></thead><tbody>
+      <div style="display:flex;flex-wrap:wrap;gap:18px 28px;align-items:flex-start"><table class="vs-table" style="max-width:820px;flex:1 1 560px"><thead><tr><th>Zone</th><th>Passes</th><th>Attaques</th><th>Points</th><th>Fautes + contrées</th><th>Réussite</th><th>Efficacité</th></tr></thead><tbody>
       ${eff.filter((x) => x.n).map((x) => `<tr><td>Zone ${x.z} · ${VS.esc(VS.TARGETS[x.z])}</td><td>${x.n}</td><td>${x.at.length}</td>${clip(x.at.filter((a) => a.grade === '#'), `Attaques gagnantes après passe en zone ${x.z}`, x.k)}${clip(x.at.filter((a) => a.grade === '=' || a.grade === '/'), `Attaques ratées après passe en zone ${x.z}`, x.err)}<td>${VS.pct(x.kp)}</td><td><b>${VS.pct(x.eff)}</b></td></tr>`).join('')}
-      </tbody></table><p class="muted small">La situation est déterminée par notre action juste avant la passe dans l'échange. L'attaque prise en compte est celle qui suit immédiatement la passe.${fsel === 'all' ? '' : ' Les passes de transition (après défense / contre) sont exclues pour un joueur précis : choisissez « Tous les joueurs » pour les voir.'}</p>`;
+      </tbody></table>${effChart(eff)}</div><p class="muted small">La situation est déterminée par notre action juste avant la passe dans l'échange. L'attaque prise en compte est celle qui suit immédiatement la passe.${fsel === 'all' ? '' : ' Les passes de transition (après défense / contre) sont exclues pour un joueur précis : choisissez « Tous les joueurs » pour les voir.'}</p>`;
+  }
+  /* Graphique : pour chaque zone, part des attaques en point / jeu continue / faute ou contrée, efficacité au bout. */
+  function effChart(eff) {
+    const rows = eff.filter((x) => x.at.length);
+    if (!rows.length) return '';
+    const C = { k: '#22c55e', c: '#64748b', e: '#ef4444' };
+    const seg = (n, tot, c, t) => (n ? `<i style="width:${(100 * n) / tot}%;background:${c}" title="${t} : ${n} (${Math.round((100 * n) / tot)} %)"></i>` : '');
+    return `<div style="flex:1 1 320px;max-width:460px">
+      ${rows.map((x) => { const t = x.at.length, cont = t - x.k - x.err;
+        return `<div class="bar-row" style="grid-template-columns:60px 1fr 56px;margin:9px 0" title="Zone ${x.z} · ${t} attaque(s)"><span>Zone ${x.z}</span><div class="bar" style="height:20px">${seg(x.k, t, C.k, 'Points')}${seg(cont, t, C.c, 'Jeu continue')}${seg(x.err, t, C.e, 'Fautes + contrées')}</div><span class="v" style="color:${x.eff > 0 ? C.k : x.eff < 0 ? C.e : 'inherit'}"><b>${VS.pct(x.eff)}</b></span></div>`; }).join('')}
+      <div class="muted small" style="display:flex;gap:12px;flex-wrap:wrap;margin-top:6px">${[[C.k, 'Points'], [C.c, 'Jeu continue'], [C.e, 'Fautes + contrées']].map(([c, l]) => `<span><i style="display:inline-block;width:10px;height:10px;border-radius:2px;background:${c};margin-right:4px;vertical-align:-1px"></i>${l}</span>`).join('')}<span>· efficacité au bout</span></div></div>`;
   }
   function hbars(items, fmt, max) {
     return items.map((it) => `<div class="bar-row"><span>${VS.esc(it.label)}</span><div class="bar">${it.parts.map((p) => `<i style="width:${Math.max(0, (p.v / max) * 100)}%;background:${p.c}" title="${VS.esc(p.t || '')}"></i>`).join('')}</div><span class="v">${fmt(it)}</span></div>`).join('') || '<div class="empty-note">Pas assez de données.</div>';
