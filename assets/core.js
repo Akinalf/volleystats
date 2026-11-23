@@ -368,7 +368,8 @@
       return { html: `<span class="team-tag them">ADV</span>${esc(lbl)}`, text: 'Adversaire · ' + lbl };
     }
     const who = pname(e.player, roster), sk = (SKILLS[e.skill] || {}).label || e.skill;
-    if (e.skill === 'E') { const z = e.grade === '=' ? ' : faute de passe' : e.target ? ` → zone ${e.target} (${TARGETS[e.target] || ''})` : ''; return { html: `${esc(who)} · Passe${esc(z)}`, text: `${who} · Passe${z}` }; }
+    if (e.skill === 'E' && e.grade === '=') return { html: `${esc(who)} · Passe ${gchip('=')} <span class="muted">Faute de passe</span>`, text: `${who} · Passe = (Faute de passe)` };
+    if (e.skill === 'E') { const z = e.target ? ` → zone ${e.target} (${TARGETS[e.target] || ''})` : ''; return { html: `${esc(who)} · Passe${esc(z)}`, text: `${who} · Passe${z}` }; }
     if (e.skill === 'F') return { html: `${esc(who)} · Faute diverse ${gchip('=')}`, text: `${who} · Faute diverse` };
     const h = hint(e.skill, e.grade);
     return { html: `${esc(who)} · ${esc(sk)} ${gchip(e.grade)} <span class="muted">${esc(h)}</span>`, text: `${who} · ${sk} ${e.grade || ''}${h ? ' (' + h + ')' : ''}` };
