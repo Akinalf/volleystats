@@ -206,8 +206,11 @@
   }
   function renderDist() {
     const all = VS.setsAnalysis(events);
+    // Passeurs = joueurs au poste P (si personne n'a ce poste, tout le monde compte comme passeur).
+    const hasP = roster.some((p) => p.pos === 'P');
+    const isSetter = (n) => !hasP || VS.player(n, roster).pos === 'P';
     // Les passes de transition ne sont pas attribuées de façon fiable à un joueur : elles ne comptent que dans « Tous les joueurs ».
-    const setters = {}; all.forEach((x) => { if (x.ctx !== 'T') setters[x.set.player] = (setters[x.set.player] || 0) + 1; });
+    const setters = {}; all.forEach((x) => { if (x.ctx !== 'T' && isSetter(x.set.player)) setters[x.set.player] = (setters[x.set.player] || 0) + 1; });
     const cur = $('setterSel').value;
     const opts = Object.entries(setters).sort((a, b) => b[1] - a[1]);
     $('setterSel').innerHTML = '<option value="all">Tous les joueurs</option>' + opts.map(([n, c]) => `<option value="${n}">${VS.esc(VS.pname(+n, roster))} (${c})</option>`).join('');
@@ -215,7 +218,7 @@
     const fsel = $('setterSel').value;
     const list = all.filter((x) => x.set.target && (fsel === 'all' || (x.set.player === +fsel && x.ctx !== 'T')));
     if (!list.length) { $('dist').innerHTML = '<div class="empty-note">Aucune passe avec zone visée pour ce filtre.</div>'; return; }
-    const ctxs = [['R#', 'Réception #  parfaite'], ['R+', 'Réception +  bonne'], ['R!', 'Réception !  moyenne'], ['R-', 'Réception -  négative'], ['T', 'Transition (après défense / contre)'], ['X', 'Autre']];
+    const ctxs = [['R#', 'Passe après réception parfaite'], ['R+', 'Passe après réception bonne'], ['R!', 'Passe après réception moyenne'], ['R-', 'Passe après réception négative'], ['T', 'Passe après défense / contre'], ['X', 'Passe dans une autre situation']];
     const Z = VS.TARGET_ORDER;
     const cell = (sub, label) => {
       const tot = sub.length;
@@ -223,7 +226,9 @@
         const bg = `background:rgba(255,183,3,${(p * 0.75).toFixed(2)})`;
         return s.length ? clip(s.map((x) => x.set), `${label} → zone ${z}`, `${Math.round(p * 100)} %<small>${s.length}</small>`).replace('<td class="', `<td style="${bg}" class="z `) : '<td class="z muted">–</td>'; }).join('');
     };
-    const rows = ctxs.map(([k, l]) => { const sub = list.filter((x) => x.ctx === k); return sub.length ? `<tr><td>${l}</td><td>${sub.length}</td>${cell(sub, l)}</tr>` : ''; }).join('');
+    const rowOf = (l, sub) => (sub.length ? `<tr><td>${l}</td><td>${sub.length}</td>${cell(sub, l)}</tr>` : '');
+    const bySetter = list.filter((x) => isSetter(x.set.player)), others = list.filter((x) => !isSetter(x.set.player));
+    const rows = ctxs.map(([k, l]) => rowOf(l, bySetter.filter((x) => x.ctx === k))).join('') + rowOf('Passe de non-passeur', others);
     const totRow = `<tr><td><b>Toutes les passes</b></td><td><b>${list.length}</b></td>${cell(list, 'Toutes les passes')}</tr>`;
     const eff = Z.map((z) => {
       const s = list.filter((x) => x.set.target === z), at = s.filter((x) => x.attack).map((x) => x.attack);
