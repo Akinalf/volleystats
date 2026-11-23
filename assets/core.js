@@ -25,8 +25,8 @@
     S: { '#': 'Ace', '+': 'Bon', '!': 'Moyen', '-': 'Facile', '/': 'Retour direct', '=': 'Faute' },
     R: { '#': 'Parfaite', '+': 'Bonne', '!': 'Moyenne', '-': 'Négative', '/': 'Retour direct', '=': 'Ace subi' },
     A: { '#': 'Point', '+': 'Adversaire en difficulté', '!': 'Couverte', '-': 'Facile pour l’adversaire', '/': 'Contrée', '=': 'Faute' },
-    B: { '#': 'Point', '+': 'Positif', '!': 'Neutre', '-': 'Négatif', '/': 'Contre-out', '=': 'Faute de filet' },
-    D: { '#': 'Parfaite', '+': 'Positive', '!': 'Moyenne', '-': 'Négative', '/': 'Renvoi direct', '=': 'Faute' },
+    B: { '#': 'Point', '+': 'Positif', '!': 'Neutre', '-': 'Négatif', '/': 'Contre perdant', '=': 'Faute de filet' },
+    D: { '#': 'Parfaite', '+': 'Positive', '!': 'Moyenne', '-': 'Négative', '/': 'Renvoi', '=': 'Faute' },
     X: { '#': 'Parfaite', '+': 'Bonne', '!': 'Moyenne', '-': 'Négative', '/': 'Renvoyée directement', '=': 'Faute' },
   };
   /* Ce que chaque qualité implique pour l'adversaire (info-bulles). */
@@ -34,7 +34,7 @@
     S: { '#': 'Ace subi par l\'adversaire → point pour nous', '+': 'Récep. adverse en difficulté', '!': 'Récep. adverse moyenne : dans les 3 m, pas de 1re tempo', '-': 'Récep. adverse bonne (parfaite ou positive)', '/': 'Récep. adverse mauvaise, relance pour notre équipe', '=': 'Point pour l\'adversaire' },
     R: { '#': 'Service adverse facile', '+': 'Service adverse facile', '!': 'Service adverse moyen', '-': 'Service adverse bon', '/': 'Service adverse : retour direct', '=': 'Ace adverse → point pour l\'adversaire' },
     A: { '#': 'Défense adverse ratée → point pour nous', '+': 'Défense adverse négative', '!': 'Revient du contre adverse, on reprend la balle', '-': 'Défense adverse positive', '/': 'Point de contre adverse', '=': 'Point pour l\'adversaire' },
-    B: { '#': 'Attaque adverse contrée → point pour nous', '+': 'Attaque adverse facile pour nous', '!': 'Attaque adverse couverte (elle reprend la balle)', '-': 'Attaque adverse positive', '/': 'Attaque adverse gagnante (contre-out)', '=': 'Point pour l\'adversaire' },
+    B: { '#': 'Attaque adverse contrée → point pour nous', '+': 'Attaque adverse facile pour nous', '!': 'Attaque adverse couverte (elle reprend la balle)', '-': 'Attaque adverse positive', '/': 'Attaque adverse gagnante : touchée par notre contre puis out ou tombée chez nous', '=': 'Point pour l\'adversaire' },
     D: { '#': 'Attaque adverse facile pour nous', '+': 'Attaque adverse facile pour nous', '!': 'Attaque adverse neutre', '-': 'Attaque adverse positive', '/': 'Attaque adverse positive', '=': 'Attaque adverse gagnante → point pour l\'adversaire' },
     X: { '#': 'Pas de déduction pour l\'adversaire', '+': 'Pas de déduction pour l\'adversaire', '!': 'Pas de déduction pour l\'adversaire', '-': 'Pas de déduction pour l\'adversaire', '/': 'Pas de déduction pour l\'adversaire', '=': 'Point pour l\'adversaire' },
   };
