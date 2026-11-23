@@ -22,7 +22,7 @@
   };
   /* Libellé de chaque qualité selon l'action (les symboles stockés ne changent pas). */
   const HINTS = {
-    S: { '#': 'Ace', '+': 'Positif', '!': 'Moyen', '-': 'Négatif', '/': 'Retour direct', '=': 'Faute' },
+    S: { '#': 'Ace', '+': 'Bon', '!': 'Moyen', '-': 'Facile', '/': 'Retour direct', '=': 'Faute' },
     R: { '#': 'Parfaite', '+': 'Positive', '!': 'Moyenne', '-': 'Négative', '/': 'Renvoyée', '=': 'Ace subi' },
     A: { '#': 'Point', '+': 'Adversaire en difficulté', '!': 'Remise en jeu', '-': 'Défendue facilement', '/': 'Contrée', '=': 'Faute' },
     B: { '#': 'Point', '+': 'Positif', '!': 'Neutre', '-': 'Négatif', '/': 'Contre-out', '=': 'Faute' },

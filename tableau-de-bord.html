@@ -190,7 +190,7 @@
 
     $('cmp').innerHTML = `<table class="vs-table cmp" style="max-width:760px"><thead><tr><th>Indicateur</th><th>Nous</th><th>${VS.esc(m.opp)}</th></tr></thead><tbody>
       ${head('Qualité service / réception')}
-      ${row('Service positif (# et +)', qual(S.team, 'S'), qual(O.team, 'S'), true)}
+      ${row('Service bon (# et +)', qual(S.team, 'S'), qual(O.team, 'S'), true)}
       ${row('Réception positive (# et +)', qual(S.team, 'R'), qual(O.team, 'R'), true)}
       ${head('Attaque')}
       ${row('Efficacité attaque (points − fautes − contrées) / attaques', eff(S.team), eff(O.team), true)}
@@ -206,13 +206,14 @@
   }
   function renderDist() {
     const all = VS.setsAnalysis(events);
-     const setters = {}; all.forEach((x) => (setters[x.set.player] = (setters[x.set.player] || 0) + 1));
+    // Les passes de transition ne sont pas attribuées de façon fiable à un joueur : elles ne comptent que dans « Tous les joueurs ».
+    const setters = {}; all.forEach((x) => { if (x.ctx !== 'T') setters[x.set.player] = (setters[x.set.player] || 0) + 1; });
     const cur = $('setterSel').value;
     const opts = Object.entries(setters).sort((a, b) => b[1] - a[1]);
-    $('setterSel').innerHTML = '<option value="all">Tous</option>' + opts.map(([n, c]) => `<option value="${n}">${VS.esc(VS.pname(+n, roster))} (${c})</option>`).join('');
+    $('setterSel').innerHTML = '<option value="all">Tous les joueurs</option>' + opts.map(([n, c]) => `<option value="${n}">${VS.esc(VS.pname(+n, roster))} (${c})</option>`).join('');
     if (cur && (cur === 'all' || setters[cur])) $('setterSel').value = cur; else if (opts.length) $('setterSel').value = opts[0][0];
     const fsel = $('setterSel').value;
-    const list = all.filter((x) => x.set.target && (fsel === 'all' || x.set.player === +fsel));
+    const list = all.filter((x) => x.set.target && (fsel === 'all' || (x.set.player === +fsel && x.ctx !== 'T')));
     if (!list.length) { $('dist').innerHTML = '<div class="empty-note">Aucune passe avec zone visée pour ce filtre.</div>'; return; }
     const ctxs = [['R#', 'Réception #  parfaite'], ['R+', 'Réception +  positive'], ['R!', 'Réception !  moyenne'], ['R-', 'Réception -  négative'], ['T', 'Transition (après défense / contre)'], ['X', 'Autre']];
     const Z = VS.TARGET_ORDER;
@@ -236,7 +237,7 @@
       <h3 style="margin-top:14px">Efficacité de l'attaque selon la zone de passe</h3>
       <table class="vs-table" style="max-width:820px"><thead><tr><th>Zone</th><th>Passes</th><th>Attaques</th><th>Points</th><th>Fautes + contrées</th><th>Réussite</th><th>Efficacité</th></tr></thead><tbody>
       ${eff.filter((x) => x.n).map((x) => `<tr><td>Zone ${x.z} · ${VS.esc(VS.TARGETS[x.z])}</td><td>${x.n}</td><td>${x.at.length}</td>${clip(x.at.filter((a) => a.grade === '#'), `Attaques gagnantes après passe en zone ${x.z}`, x.k)}${clip(x.at.filter((a) => a.grade === '=' || a.grade === '/'), `Attaques ratées après passe en zone ${x.z}`, x.err)}<td>${VS.pct(x.kp)}</td><td><b>${VS.pct(x.eff)}</b></td></tr>`).join('')}
-      </tbody></table><p class="muted small">La situation est déterminée par notre action juste avant la passe dans l'échange. L'attaque prise en compte est celle qui suit immédiatement la passe.</p>`;
+      </tbody></table><p class="muted small">La situation est déterminée par notre action juste avant la passe dans l'échange. L'attaque prise en compte est celle qui suit immédiatement la passe.${fsel === 'all' ? '' : ' Les passes de transition (après défense / contre) sont exclues pour un joueur précis : choisissez « Tous les joueurs » pour les voir.'}</p>`;
   }
   function hbars(items, fmt, max) {
     return items.map((it) => `<div class="bar-row"><span>${VS.esc(it.label)}</span><div class="bar">${it.parts.map((p) => `<i style="width:${Math.max(0, (p.v / max) * 100)}%;background:${p.c}" title="${VS.esc(p.t || '')}"></i>`).join('')}</div><span class="v">${fmt(it)}</span></div>`).join('') || '<div class="empty-note">Pas assez de données.</div>';
@@ -294,7 +295,7 @@
   let gSkill = 'A', lastS = null, lastOppEv = [], gRows = [];
   const G_TABS = [['S', 'Service'], ['R', 'Réception'], ['A', 'Attaque'], ['B', 'Contre'], ['D', 'Défense'], ['X', 'Relance']];
   const G_NOTES = {
-    S: 'Service : # ace · + positif (récep. adverse en difficulté) · ! moyen · - négatif (récep. adverse bonne) · / retour direct (récep. adverse mauvaise, relance pour nous) · = faute.',
+    S: 'Service : # ace · + bon (récep. adverse en difficulté) · ! moyen · - facile (récep. adverse bonne) · / retour direct (récep. adverse mauvaise, relance pour nous) · = faute.',
     R: 'Réception : # parfaite · + positive · ! moyenne · - négative · / renvoyée · = ace subi. Côté adversaire, # et + ne sont pas distingués (déduit de notre service).',
     A: 'Attaque : # point · + adversaire en difficulté · ! remise en jeu · - défendue facilement · / contrée · = faute.',
     B: 'Contre : # point · + positif · ! neutre · - négatif · / contre-out · = faute.',
