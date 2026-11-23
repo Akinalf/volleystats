@@ -173,10 +173,11 @@
     } else if (VS.teamOf(last) === 'us' && last.skill === 'E' && last.target) {
       const want = { 4: ['R4', true], 3: ['C', true], 2: ['PT', true], 6: ['R4', false], 5: ['R4', false], 1: ['PT', false] }[last.target];
       if (want) {
-        // Joueur du bon poste sur la bonne ligne ; à défaut, ce poste où qu'il soit (ex. pointu arrière servi en zone 2).
-        const ofPos = st.lineup.map((n, i) => ({ n, i })).filter(({ n }) => VS.player(n, roster).pos === want[0]);
-        const sameRow = ofPos.filter(({ i }) => [1, 2, 3].includes(i) === want[1]);
-        (sameRow.length ? sameRow : ofPos).forEach(({ n }) => cue(n, 'A', 'cue-att'));
+        const front = (i) => [1, 2, 3].includes(i);
+        const find = (pos, isFront) => st.lineup.filter((n, i) => VS.player(n, roster).pos === pos && front(i) === isFront);
+        let who = find(want[0], want[1]);
+        if (!who.length && last.target === 2) who = find('C', true); // pointu arrière : passe en 2 → central avant
+        who.forEach((n) => cue(n, 'A', 'cue-att'));
       }
     }
     return cues;
