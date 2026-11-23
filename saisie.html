@@ -215,7 +215,9 @@
       const label = sk ? VS.hint(sk, g) : base;
       b.querySelector('span').textContent = label;
       b.title = sk ? `${g} · ${VS.SKILLS[sk].label} ${label.toLowerCase()}\nPour l'adversaire : ${VS.oppHint(sk, g)}` : `${g} · ${base}`;
-      b.disabled = !!selected && selected.skill === 'E'; // passe : pas de qualité, seulement une zone
+      const isPass = !!selected && selected.skill === 'E';
+      if (isPass && g === '=') { b.querySelector('span').textContent = 'Faute de passe'; b.title = '= · Faute de passe (double, porté…) → point pour l’adversaire'; }
+      b.disabled = isPass && g !== '='; // passe : une zone, ou « = » pour une faute de passe
     });
   }
   function renderSelection() {
@@ -226,7 +228,7 @@
     $('qualityBox').style.borderColor = selected && selected.skill !== 'E' && selected.skill !== 'F' ? 'var(--accent)' : 'var(--line)';
     $('zoneBox').style.borderColor = selected && selected.skill === 'E' ? 'var(--accent)' : 'var(--line)';
     if (!selected) el.querySelector('.msg').textContent = 'Sélectionnez une case joueur × action.';
-    else if (selected.skill === 'E') el.querySelector('.msg').textContent = `${VS.pname(selected.player, roster)} · Passe : choisissez la zone cible (pas de qualité).`;
+    else if (selected.skill === 'E') el.querySelector('.msg').textContent = `${VS.pname(selected.player, roster)} · Passe : choisissez la zone cible, ou = pour une faute de passe.`;
     else el.querySelector('.msg').textContent = `${VS.pname(selected.player, roster)} · ${VS.SKILLS[selected.skill].label} : choisissez une qualité.`;
     document.querySelectorAll('#zones [data-zone]').forEach((b) => b.classList.toggle('selected', !!selected && selected.skill === 'E' && +b.dataset.zone === selected.zone));
     renderMatrix();
@@ -240,7 +242,8 @@
   function commitQuality(g) {
     if (locked()) return;
     if (!selected) { VS.toast('Choisissez d’abord une case joueur × action.', 'error'); return; }
-    if (selected.skill === 'E') { VS.toast('Pour une passe, choisissez une zone — pas une qualité.', 'error'); return; }
+    if (selected.skill === 'E' && g !== '=') { VS.toast('Pour une passe, choisissez une zone (ou = pour une faute de passe).', 'error'); return; }
+    if (selected.skill === 'E') { appendEvent({ id: VS.uid(), kind: 'action', team: 'us', player: selected.player, skill: 'E', grade: '=' }); selected = autoSel(); renderSelection(); return; }
     if (selected.skill === 'F') { VS.toast('La faute diverse est déjà enregistrée en cliquant sa case.', 'error'); return; }
     appendEvent({ id: VS.uid(), kind: 'action', team: 'us', player: selected.player, skill: selected.skill, grade: g });
     selected = autoSel(); renderSelection();
@@ -341,7 +344,7 @@
       body = `<label class="muted small">Joueur<select id="edPlayer">${rosterOpts(ev.player)}</select></label>
         <label class="muted small">Action<select id="edSkill">${skillOpts}<option value="F" ${ev.skill === 'F' ? 'selected' : ''}>Faute diverse</option></select></label>
         <label class="muted small" id="edQualityWrap">Qualité<select id="edGrade">${VS.GRADE_ORDER.map((g) => `<option value="${g}" ${g === ev.grade ? 'selected' : ''}>${g} · ${VS.esc(VS.hint(ev.skill, g) || VS.GRADES[g].label)}</option>`).join('')}</select></label>
-        <label class="muted small" id="edZoneWrap">Cible de passe<select id="edZone">${VS.TARGET_ORDER.map((z) => `<option value="${z}" ${z === ev.target ? 'selected' : ''}>Zone ${z} · ${VS.TARGETS[z]}</option>`).join('')}</select></label>`;
+        <label class="muted small" id="edZoneWrap">Cible de passe<select id="edZone">${VS.TARGET_ORDER.map((z) => `<option value="${z}" ${z === ev.target && ev.grade !== '=' ? 'selected' : ''}>Zone ${z} · ${VS.TARGETS[z]}</option>`).join('')}<option value="fault" ${ev.skill === 'E' && ev.grade === '=' ? 'selected' : ''}>= Faute de passe</option></select></label>`;
     } else if ((ev.kind || 'action') === 'action' && VS.teamOf(ev) === 'them') {
       body = `<label class="muted small" style="grid-column:1/-1">Action adverse<select id="edOpp">${VS.OPP_ACTIONS.map((o) => `<option value="${o.id}" ${o.skill === ev.skill && o.grade === ev.grade ? 'selected' : ''}>${VS.esc(o.label)}</option>`).join('')}</select></label>`;
     } else if (ev.kind === 'point') {
@@ -357,7 +360,7 @@
         if (w.querySelector('#edPlayer')) updated.player = +w.querySelector('#edPlayer').value;
         if (w.querySelector('#edSkill')) {
           updated.skill = w.querySelector('#edSkill').value;
-          if (updated.skill === 'E') { updated.grade = null; updated.target = +(w.querySelector('#edZone').value); }
+          if (updated.skill === 'E') { const zv = w.querySelector('#edZone').value; if (zv === 'fault') { updated.grade = '='; delete updated.target; } else { updated.grade = null; updated.target = +zv; } }
           else if (updated.skill === 'F') { updated.grade = '='; delete updated.target; }
           else { updated.grade = w.querySelector('#edGrade').value; delete updated.target; }
           updated.kind = 'action'; updated.team = 'us';
