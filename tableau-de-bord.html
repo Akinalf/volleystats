@@ -215,7 +215,7 @@
     const fsel = $('setterSel').value;
     const list = all.filter((x) => x.set.target && (fsel === 'all' || (x.set.player === +fsel && x.ctx !== 'T')));
     if (!list.length) { $('dist').innerHTML = '<div class="empty-note">Aucune passe avec zone visée pour ce filtre.</div>'; return; }
-    const ctxs = [['R#', 'Réception #  parfaite'], ['R+', 'Réception +  positive'], ['R!', 'Réception !  moyenne'], ['R-', 'Réception -  négative'], ['T', 'Transition (après défense / contre)'], ['X', 'Autre']];
+    const ctxs = [['R#', 'Réception #  parfaite'], ['R+', 'Réception +  bonne'], ['R!', 'Réception !  moyenne'], ['R-', 'Réception -  négative'], ['T', 'Transition (après défense / contre)'], ['X', 'Autre']];
     const Z = VS.TARGET_ORDER;
     const cell = (sub, label) => {
       const tot = sub.length;
@@ -295,8 +295,8 @@
   let gSkill = 'A', lastS = null, lastOppEv = [], gRows = [];
   const G_TABS = [['S', 'Service'], ['R', 'Réception'], ['A', 'Attaque'], ['B', 'Contre'], ['D', 'Défense'], ['X', 'Relance']];
   const G_NOTES = {
-    S: 'Service : # ace · + bon (récep. adverse en difficulté) · ! moyen · - facile (récep. adverse bonne) · / retour direct (récep. adverse mauvaise, relance pour nous) · = faute.',
-    R: 'Réception : # parfaite · + positive · ! moyenne · - négative · / renvoyée · = ace subi. Côté adversaire, # et + ne sont pas distingués (déduit de notre service).',
+    S: 'Service : # ace · + bon (récep. adverse en difficulté) · ! moyen (récep. adverse dans les 3 m, pas de 1re tempo) · - facile (récep. adverse bonne) · / retour direct (récep. adverse mauvaise, relance pour nous) · = faute.',
+    R: 'Réception : # parfaite · + bonne (le passeur bouge un peu) · ! moyenne (dans les 3 m, pas de 1re tempo) · - négative (à plus de 3,5 m du filet ou très basse) · / retour direct · = ace subi. Côté adversaire, # et + ne sont pas distingués (déduit de notre service).',
     A: 'Attaque : # point · + adversaire en difficulté · ! couverte (revient du contre, on reprend) · - facile pour l’adversaire · / contrée · = faute.',
     B: 'Contre : # point · + positif · ! neutre · - négatif · / contre-out · = faute de filet.',
     D: 'Défense : # parfaite · + positive · ! moyenne · - négative · / renvoi direct · = faute.',
