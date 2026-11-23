@@ -8,7 +8,7 @@
   /* Référentiels                                                           */
   /* ====================================================================== */
   const SKILLS = {
-    S: { label: 'Service' }, R: { label: 'Réception' }, E: { label: 'Passe' }, A: { label: 'Attaque' },
+    S: { label: 'Service' }, R: { label: 'Réception' }, E: { label: 'Passe' }, A: { label: 'Attaque' }, V: { label: 'Balle facile' },
     B: { label: 'Contre' }, D: { label: 'Défense' }, X: { label: 'Relance' }, F: { label: 'Faute diverse' },
   };
   const GRADE_ORDER = ['#', '+', '!', '-', '/', '='];
@@ -28,7 +28,11 @@
     B: { '#': 'Point', '+': 'Positif', '!': 'Neutre', '-': 'Négatif', '/': 'Contre perdant', '=': 'Faute de filet' },
     D: { '#': 'Parfaite', '+': 'Positive', '!': 'Moyenne', '-': 'Négative', '/': 'Renvoi', '=': 'Faute' },
     X: { '#': 'Parfaite', '+': 'Bonne', '!': 'Moyenne', '-': 'Négative', '/': 'Renvoyée directement', '=': 'Faute' },
+    V: { '#': 'Point', '!': 'Jeu continue', '=': 'Faute' },
   };
+  /* Balle facile (renvoi à 10 doigts ou en manchette, sans attaque) : 3 qualités seulement. */
+  const FREE_GRADES = ['#', '!', '='];
+  const gradesFor = (skill) => (skill === 'V' ? FREE_GRADES : GRADE_ORDER);
   /* Ce que chaque qualité implique pour l'adversaire (info-bulles). */
   const OPP_HINTS = {
     S: { '#': 'Ace subi par l\'adversaire → point pour nous', '+': 'Récep. adverse en difficulté', '!': 'Récep. adverse moyenne : dans les 3 m, pas de 1re tempo', '-': 'Récep. adverse bonne (parfaite ou positive)', '/': 'Récep. adverse mauvaise, relance pour notre équipe', '=': 'Point pour l\'adversaire' },
@@ -37,6 +41,7 @@
     B: { '#': 'Attaque adverse contrée → point pour nous', '+': 'Attaque adverse facile pour nous', '!': 'Attaque adverse couverte (elle reprend la balle)', '-': 'Attaque adverse positive', '/': 'Attaque adverse gagnante : touchée par notre contre puis out ou tombée chez nous', '=': 'Point pour l\'adversaire' },
     D: { '#': 'Attaque adverse facile pour nous', '+': 'Attaque adverse facile pour nous', '!': 'Attaque adverse neutre', '-': 'Attaque adverse positive', '/': 'Attaque adverse positive', '=': 'Attaque adverse gagnante → point pour l\'adversaire' },
     X: { '#': 'Pas de déduction pour l\'adversaire', '+': 'Pas de déduction pour l\'adversaire', '!': 'Pas de déduction pour l\'adversaire', '-': 'Pas de déduction pour l\'adversaire', '/': 'Pas de déduction pour l\'adversaire', '=': 'Point pour l\'adversaire' },
+    V: { '#': 'La balle tombe chez l’adversaire → point pour nous', '!': 'Balle facile à jouer pour l’adversaire', '=': 'Filet ou dehors → point pour l’adversaire' },
   };
   const POSITIONS = { P: 'Passeur', R4: 'Réceptionneur-attaquant', C: 'Central', PT: 'Pointu', L: 'Libéro' };
   const TARGETS = { 4: 'Avant gauche', 3: 'Centre', 2: 'Avant droit', 5: 'Arrière gauche', 6: 'Pipe (arr. centre)', 1: 'Arrière droit' };
@@ -175,7 +180,7 @@
     const t = teamOf(e), o = t === 'us' ? 'them' : 'us', g = e.grade, s = e.skill;
     if (s === 'F') return o;
     if (g === '=') return o;
-    if (g === '#' && ['S', 'A', 'B'].includes(s)) return t;
+    if (g === '#' && ['S', 'A', 'B', 'V'].includes(s)) return t;
     if (g === '/' && (s === 'A' || s === 'B')) return o; // attaque contrée / contre-out
     return null;
   }
@@ -183,7 +188,7 @@
     if (e.kind === 'point') return 'Non détaillé';
     const t = teamOf(e), s = e.skill, g = e.grade;
     if (e.winner === 'us') {
-      if (t === 'us') return s === 'S' ? 'Ace' : s === 'B' ? 'Contre' : s === 'A' ? 'Attaque' : 'Autre';
+      if (t === 'us') return s === 'S' ? 'Ace' : s === 'B' ? 'Contre' : s === 'A' ? 'Attaque' : s === 'V' ? 'Balle facile' : 'Autre';
       return s === 'S' ? 'Faute de service adverse' : s === 'A' ? 'Faute d\'attaque adverse' : 'Autre faute adverse';
     }
     if (t === 'them') return s === 'S' ? 'Ace adverse' : s === 'A' ? 'Attaque adverse' : 'Autre';
@@ -192,6 +197,7 @@
     if (s === 'A') return g === '/' ? 'Attaque contrée' : 'Faute d\'attaque';
     if (s === 'B') return g === '/' ? 'Attaque adverse' : 'Faute de filet (contre)';
     if (s === 'D') return 'Attaque adverse';
+    if (s === 'V') return 'Faute sur balle facile';
     return 'Faute diverse';
   }
 
@@ -279,10 +285,11 @@
       attTot: A.tot, kill: A['#'], attErr: A['='], attBlk: A['/'], killPct: ratio(A['#'], A.tot), attEff: ratio(A['#'] - A['='] - A['/'], A.tot),
       blkTot: B.tot, blkPts: B['#'],
       digTot: D.tot, digPosPct: ratio(D['#'] + D['+'], D.tot),
+      freeTot: l.V.tot, freePts: l.V['#'], freeErr: l.V['='],
       relanceTot: X.tot, relancePosPct: ratio(X['#'] + X['+'], X.tot),
-      errs: S['='] + A['='] + B['='] + X['='] + l.E['='] + l.F.tot,
+      errs: S['='] + A['='] + B['='] + X['='] + l.E['='] + l.V['='] + l.F.tot,
     };
-    d.pts = d.ace + d.kill + d.blkPts;
+    d.pts = d.ace + d.kill + d.blkPts + d.freePts;
     return d;
   }
   function computeStats(events, team) {
@@ -345,7 +352,8 @@
         if (prev && prev.skill === 'R' && ['#', '+', '!', '-'].includes(prev.grade)) ctx = 'R' + prev.grade;
         else if (prev && ['D', 'B', 'X'].includes(prev.skill)) ctx = 'T';
         const next = list[i + 1];
-        res.push({ set: e, ctx, attack: next && teamOf(next) === 'us' && next.skill === 'A' ? next : null });
+        const ours = next && teamOf(next) === 'us';
+        res.push({ set: e, ctx, attack: ours && next.skill === 'A' ? next : null, free: ours && next.skill === 'V' ? next : null });
       });
     });
     return res;
@@ -562,7 +570,7 @@
   }
 
   global.VS = {
-    SKILLS, GRADES, GRADE_ORDER, POSITIONS, TARGETS, TARGET_ORDER, OPP_ACTIONS,
+    SKILLS, GRADES, GRADE_ORDER, FREE_GRADES, gradesFor, POSITIONS, TARGETS, TARGET_ORDER, OPP_ACTIONS,
     esc, uid, pct, fmtDate, load, save, listMatches, getMatch, saveMatch, deleteMatch, currentMatch,
     baseRoster, useMatchRoster, player, pname, rosterText, parseRoster, defaultLineup, defaultLibero, lineupForm, readLineupForm, newMatch,
     teamOf, isAction, pointWinner, pointReason, replay, computeStats, deriveOpp, setsAnalysis,

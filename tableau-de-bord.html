@@ -55,7 +55,7 @@
     <div class="table-wrap" id="grades"></div>
     <div class="head-actions" style="margin-top:8px;justify-content:space-between"><span class="muted small" id="gNote"></span><button class="vs-btn sm" id="btnGradesCsv">Exporter ce tableau (CSV)</button></div>
   </div>
-  <div class="panel"><div class="panel-h"><h3>Synthèse par joueur</h3><span class="muted small">Eff. attaque = (points − fautes − contrées) / attaques · Passe : nombre de passes vers la zone cible</span></div><div class="table-wrap" id="table"></div></div>
+  <div class="panel"><div class="panel-h"><h3>Synthèse par joueur</h3><span class="muted small">Eff. attaque = (points − fautes − contrées) / attaques, balles faciles exclues · Passe : nombre de passes vers la zone cible</span></div><div class="table-wrap" id="table"></div></div>
   <div class="panel"><div class="panel-h"><h3>Comparatif Nous / <span id="oppTitle"></span></h3><span class="muted small">Stats adverses déduites de nos actions + actions adverses saisies</span></div><div class="table-wrap" id="cmp"></div></div>
   <div class="panel"><div class="panel-h"><h3>Distribution du passeur selon la qualité de réception</h3><label class="muted small">Passeur <select class="src" id="setterSel"></select></label></div><div id="dist"></div></div>
   <div class="grid2">
@@ -134,19 +134,20 @@
         <td class="sep">${d.recTot || '–'}</td><td>${VS.pct(d.recPosPct)}</td><td>${VS.pct(d.recPerfPct)}</td>${clip(pick(f('R', '=')), who + ' — aces subis', d.recErr)}
         <td class="sep">${d.setTot || '–'}</td>
         <td class="sep">${d.attTot || '–'}</td>${clip(pick(f('A', '#')), who + ' — attaques gagnantes', d.kill)}${clip(pick(f('A', '=')), who + ' — fautes d\'attaque', d.attErr)}${clip(pick(f('A', '/')), who + ' — attaques contrées', d.attBlk)}<td>${VS.pct(d.killPct)}</td><td><b>${VS.pct(d.attEff)}</b></td>
+        <td class="sep" title="${d.freeTot ? `${d.freePts} point(s) · ${d.freeErr} faute(s)` : ''}">${d.freeTot || '–'}</td>
         ${clip(pick(f('B', '#')), who + ' — points de contre', d.blkPts).replace('<td class="', '<td class="sep ')}
         <td class="sep">${d.digTot || '–'}</td><td>${VS.pct(d.digPosPct)}</td><td class="sep">${d.relanceTot || '–'}</td><td>${VS.pct(d.relancePosPct)}</td></tr>`;
     };
     $('table').innerHTML = `<table class="vs-table"><thead>
-      <tr><th></th><th colspan="2" style="text-align:center">Bilan</th><th class="sep" colspan="4" style="text-align:center">Service</th><th class="sep" colspan="4" style="text-align:center">Réception</th><th class="sep" style="text-align:center">Passe</th><th class="sep" colspan="6" style="text-align:center">Attaque</th><th class="sep" style="text-align:center">Contre</th><th class="sep" colspan="2" style="text-align:center">Défense</th><th class="sep" colspan="2" style="text-align:center">Relance</th></tr>
-      <tr><th>Joueur</th><th>Pts</th><th>Fautes</th><th class="sep">Tot</th><th>Aces</th><th>Fautes</th><th>Eff.</th><th class="sep">Tot</th><th>Pos.</th><th>Parf.</th><th>Aces subis</th><th class="sep">Tot</th><th class="sep">Tot</th><th>Pts</th><th>Fautes</th><th>Contrées</th><th>Réussite</th><th>Eff.</th><th class="sep">Pts</th><th class="sep">Tot</th><th>Pos.</th><th class="sep">Tot</th><th>Pos.</th></tr></thead>
+      <tr><th></th><th colspan="2" style="text-align:center">Bilan</th><th class="sep" colspan="4" style="text-align:center">Service</th><th class="sep" colspan="4" style="text-align:center">Réception</th><th class="sep" style="text-align:center">Passe</th><th class="sep" colspan="6" style="text-align:center">Attaque</th><th class="sep" style="text-align:center" title="Renvois à 10 doigts ou en manchette, sans attaque : hors efficacité d’attaque">Balles<br>faciles</th><th class="sep" style="text-align:center">Contre</th><th class="sep" colspan="2" style="text-align:center">Défense</th><th class="sep" colspan="2" style="text-align:center">Relance</th></tr>
+      <tr><th>Joueur</th><th>Pts</th><th>Fautes</th><th class="sep">Tot</th><th>Aces</th><th>Fautes</th><th>Eff.</th><th class="sep">Tot</th><th>Pos.</th><th>Parf.</th><th>Aces subis</th><th class="sep">Tot</th><th class="sep">Tot</th><th>Pts</th><th>Fautes</th><th>Contrées</th><th>Réussite</th><th>Eff.</th><th class="sep">Tot</th><th class="sep">Pts</th><th class="sep">Tot</th><th>Pos.</th><th class="sep">Tot</th><th>Pos.</th></tr></thead>
       <tbody>${rows.map((p) => line(p, p.num)).join('')}${line(S.team, null)}</tbody></table>`;
   }
   /** Comment chaque point a été marqué : attaque, ace, contre, faute adverse, non détaillé */
   function pointType(e) {
     if (e.kind === 'point') return 'nd';
     const own = VS.teamOf(e) === e.winner;          // l'action vient de l'équipe qui marque
-    if (own) return e.skill === 'S' ? 'ace' : e.skill === 'B' ? 'bloc' : e.skill === 'A' ? 'att' : 'faute';
+    if (own) return e.skill === 'S' ? 'ace' : e.skill === 'B' ? 'bloc' : e.skill === 'A' ? 'att' : e.skill === 'V' ? 'free' : 'faute';
     // l'action vient de l'équipe qui perd le point
     if (e.grade === '=' && e.skill === 'R') return 'ace';
     if (e.skill === 'A' && e.grade === '/') return 'bloc';
@@ -170,7 +171,7 @@
     // Fautes directes (points donnés à l'adversaire sur une faute)
     const raw = events.filter((e) => VS.isAction(e));
     const flt = (team, skills) => raw.filter((e) => VS.teamOf(e) === team && e.grade === '=' && skills.includes(e.skill));
-    const FAULTS = [['Service', ['S'], ['S']], ['Attaque (filet, dehors)', ['A'], ['A']], ['Contre (filet)', ['B'], []], ['Autres (passe, filet, 4 touches, pied, relance…)', ['F', 'E', 'X'], ['F', 'E', 'X']]];
+    const FAULTS = [['Service', ['S'], ['S']], ['Attaque (filet, dehors)', ['A'], ['A']], ['Contre (filet)', ['B'], []], ['Autres (passe, balle facile, filet, 4 touches, pied, relance…)', ['F', 'E', 'X', 'V'], ['F', 'E', 'X']]];
     const cnt = (l) => ({ v: l.length, txt: l.length, list: l });
     let totUs = [], totThem = [];
     const faultRows = FAULTS.map(([label, su, st]) => {
@@ -182,11 +183,11 @@
 
     // Points marqués par type
     const pts = events.filter((e) => e.winner);
-    const TYPES = [['att', 'Attaque'], ['ace', 'Ace'], ['bloc', 'Contre (bloc)'], ['faute', 'Faute adverse'], ['nd', 'Non détaillé']];
+    const TYPES = [['att', 'Attaque'], ['ace', 'Ace'], ['bloc', 'Contre (bloc)'], ['free', 'Balle facile'], ['faute', 'Faute adverse'], ['nd', 'Non détaillé']];
     const by = (w, k) => pts.filter((e) => e.winner === w && pointType(e) === k);
     const wUs = pts.filter((e) => e.winner === 'us'), wThem = pts.filter((e) => e.winner === 'them');
     const ptCell = (l, tot) => ({ v: l.length, txt: `${l.length} <span class="muted small">${tot ? Math.round((100 * l.length) / tot) : 0} %</span>`, list: l });
-    const ptRows = TYPES.map(([k, label]) => { const a = by('us', k), b = by('them', k); return a.length || b.length || k !== 'nd' ? row(label, ptCell(a, wUs.length), ptCell(b, wThem.length), true) : ''; }).join('');
+    const ptRows = TYPES.map(([k, label]) => { const a = by('us', k), b = by('them', k); return a.length || b.length || (k !== 'nd' && k !== 'free') ? row(label, ptCell(a, wUs.length), ptCell(b, wThem.length), true) : ''; }).join('');
 
     $('cmp').innerHTML = `<table class="vs-table cmp" style="max-width:760px"><thead><tr><th>Indicateur</th><th>Nous</th><th>${VS.esc(m.opp)}</th></tr></thead><tbody>
       ${head('Qualité service / réception')}
@@ -232,16 +233,16 @@
     const eff = Z.map((z) => {
       const s = list.filter((x) => x.set.target === z), at = s.filter((x) => x.attack).map((x) => x.attack);
       const k = at.filter((a) => a.grade === '#').length, err = at.filter((a) => a.grade === '=' || a.grade === '/').length;
-      return { z, n: s.length, at, k, err, kp: at.length ? k / at.length : null, eff: at.length ? (k - err) / at.length : null };
+      return { z, n: s.length, fb: s.filter((x) => x.free).length, at, k, err, kp: at.length ? k / at.length : null, eff: at.length ? (k - err) / at.length : null };
     });
     const totals = list.length;
     const courtCells = [4, 3, 2, 5, 6, 1].map((z) => { const n = list.filter((x) => x.set.target === z).length, p = totals ? n / totals : 0; return `<div style="background:rgba(255,183,3,${(0.1 + p * 0.8).toFixed(2)})">${Math.round(p * 100)} %<small>Zone ${z}</small></div>`; }).join('');
     $('dist').innerHTML = `<div class="dist-wrap"><div class="table-wrap"><table class="vs-table dist"><thead><tr><th>Situation</th><th>Passes</th>${Z.map((z) => `<th style="text-align:center">Zone ${z}<br><span class="small">${VS.esc(VS.TARGETS[z])}</span></th>`).join('')}</tr></thead><tbody>${rows}${totRow}</tbody></table></div>
       <div><div class="muted small" style="margin-bottom:6px">Répartition globale (filet en haut)</div><div class="court-mini">${courtCells}</div></div></div>
       <h3 style="margin-top:14px">Efficacité de l'attaque selon la zone de passe</h3>
-      <div style="display:flex;flex-wrap:wrap;gap:18px 28px;align-items:flex-start"><table class="vs-table" style="max-width:820px;flex:1 1 560px"><thead><tr><th>Zone</th><th>Passes</th><th>Attaques</th><th>Points</th><th>Fautes + contrées</th><th>Réussite</th><th>Efficacité</th></tr></thead><tbody>
-      ${eff.filter((x) => x.n).map((x) => `<tr><td>Zone ${x.z} · ${VS.esc(VS.TARGETS[x.z])}</td><td>${x.n}</td><td>${x.at.length}</td>${clip(x.at.filter((a) => a.grade === '#'), `Attaques gagnantes après passe en zone ${x.z}`, x.k)}${clip(x.at.filter((a) => a.grade === '=' || a.grade === '/'), `Attaques ratées après passe en zone ${x.z}`, x.err)}<td>${VS.pct(x.kp)}</td><td><b>${VS.pct(x.eff)}</b></td></tr>`).join('')}
-      </tbody></table>${effChart(eff)}</div><p class="muted small">La situation est déterminée par notre action juste avant la passe dans l'échange. L'attaque prise en compte est celle qui suit immédiatement la passe.</p>`;
+      <div style="display:flex;flex-wrap:wrap;gap:18px 28px;align-items:flex-start"><table class="vs-table" style="max-width:820px;flex:1 1 560px"><thead><tr><th>Zone</th><th>Passes</th><th>Attaques</th><th title="Renvoi à 10 doigts ou en manchette après la passe : hors efficacité">Balles faciles</th><th>Points</th><th>Fautes + contrées</th><th>Réussite</th><th>Efficacité</th></tr></thead><tbody>
+      ${eff.filter((x) => x.n).map((x) => `<tr><td>Zone ${x.z} · ${VS.esc(VS.TARGETS[x.z])}</td><td>${x.n}</td><td>${x.at.length}</td><td>${x.fb || '–'}</td>${clip(x.at.filter((a) => a.grade === '#'), `Attaques gagnantes après passe en zone ${x.z}`, x.k)}${clip(x.at.filter((a) => a.grade === '=' || a.grade === '/'), `Attaques ratées après passe en zone ${x.z}`, x.err)}<td>${VS.pct(x.kp)}</td><td><b>${VS.pct(x.eff)}</b></td></tr>`).join('')}
+      </tbody></table>${effChart(eff)}</div><p class="muted small">La situation est déterminée par notre action juste avant la passe dans l'échange. L'attaque prise en compte est celle qui suit immédiatement la passe ; une balle facile après la passe n'entre pas dans l'efficacité.</p>`;
   }
   /* Graphique : pour chaque zone, part des attaques en point / jeu continue / faute ou contrée, efficacité au bout. */
   function effChart(eff) {
