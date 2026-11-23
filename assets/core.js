@@ -25,7 +25,7 @@
     S: { '#': 'Ace', '+': 'Bon', '!': 'Moyen', '-': 'Facile', '/': 'Retour direct', '=': 'Faute' },
     R: { '#': 'Parfaite', '+': 'Positive', '!': 'Moyenne', '-': 'Négative', '/': 'Renvoyée', '=': 'Ace subi' },
     A: { '#': 'Point', '+': 'Adversaire en difficulté', '!': 'Remise en jeu', '-': 'Défendue facilement', '/': 'Contrée', '=': 'Faute' },
-    B: { '#': 'Point', '+': 'Positif', '!': 'Neutre', '-': 'Négatif', '/': 'Contre-out', '=': 'Faute' },
+    B: { '#': 'Point', '+': 'Positif', '!': 'Neutre', '-': 'Négatif', '/': 'Contre-out', '=': 'Faute de filet' },
     D: { '#': 'Parfaite', '+': 'Positive', '!': 'Moyenne', '-': 'Négative', '/': 'Renvoi direct', '=': 'Faute' },
     X: { '#': 'Parfaite', '+': 'Bonne', '!': 'Moyenne', '-': 'Négative', '/': 'Renvoyée directement', '=': 'Faute' },
   };
