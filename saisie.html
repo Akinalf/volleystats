@@ -76,6 +76,7 @@
     <button class="vs-btn sm" data-pt="us" title="Ajouter un point non détaillé à notre score">+1 Nous</button>
     <button class="vs-btn sm" data-pt="them" title="Ajouter un point non détaillé au score adverse">+1 Adversaire</button>
     <button class="vs-btn sm ghost" id="btnSub">Remplacement</button>
+    <button class="vs-btn sm ghost" id="btnLineup" title="Corriger la composition de départ d'un set">Composition</button>
     <button class="vs-btn sm ghost" id="btnEndSet">Terminer le set</button>
     <button class="vs-btn sm" id="btnUndo" title="Annuler la dernière saisie (Ctrl+Z)">Annuler</button>
     <button class="vs-btn sm ghost" id="btnRedo" title="Rétablir la saisie annulée (Ctrl+Y)" disabled>Rétablir</button>
@@ -287,7 +288,7 @@
   }
   function groupEvents() {
     const groups = new Map();
-    R.events.filter((e) => !e.ignored && ['action','point','sub','setend'].includes(e.kind || 'action')).forEach((e) => {
+    R.events.filter((e) => (!e.ignored || e.kind === 'sub') && ['action','point','sub','setend'].includes(e.kind || 'action')).forEach((e) => {
       const key = `${e.set}:${e.rally}`;
       if (!groups.has(key)) groups.set(key, { key, set: e.set, rally: e.rally, list: [], winner: null, us: e.us, them: e.them });
       const g = groups.get(key); g.list.push(e); if (e.winner) g.winner = e.winner; g.us = e.us; g.them = e.them;
@@ -309,7 +310,7 @@
   function renderLog() {
     const groups = groupEvents().slice().reverse();
     const list = groups.map((g) => `<div class="journal-group"><div class="jg-head"><span>Set ${g.set} · Échange ${g.rally}${g.winner ? ` · point ${g.winner === 'us' ? 'Nous' : VS.esc(m.opp)}` : ' · en cours'}</span><span>${g.us}–${g.them}</span></div>
-      ${g.list.map((e, i) => `<div class="jrow ${e.winner ? 'point' : ''} ${flashId === e.id ? 'flash' : ''}" data-edit="${e.id}" title="Cliquez sur le crayon pour corriger"><span class="ord">${e.kind === 'point' ? '●' : e.kind === 'sub' ? '↔' : e.kind === 'setend' ? '■' : i + 1}</span><span class="desc">${VS.describe(e, roster)}</span><span class="score-small">${e.us}–${e.them}</span><button class="edit" data-editbtn="${e.id}" title="Corriger cette action">✎</button></div>`).join('')}</div>`).join('');
+      ${g.list.map((e, i) => `<div class="jrow ${e.winner ? 'point' : ''} ${flashId === e.id ? 'flash' : ''}" data-edit="${e.id}" title="Cliquez sur le crayon pour corriger"><span class="ord">${e.kind === 'point' ? '●' : e.kind === 'sub' ? '↔' : e.kind === 'setend' ? '■' : i + 1}</span><span class="desc">${VS.describe(e, roster)}${e.ignored ? ' <b style="color:#f87171" title="Le joueur sortant n’est pas sur le terrain (ou l’entrant y est déjà) : ce remplacement est ignoré. Corrigez-le ou supprimez-le.">⚠ incohérent, ignoré</b>' : ''}</span><span class="score-small">${e.us}–${e.them}</span><button class="edit" data-editbtn="${e.id}" title="Corriger cette action">✎</button></div>`).join('')}</div>`).join('');
     $('journal').innerHTML = list || '<div class="empty-note">Aucune saisie pour ce match.</div>';
     $('journal').scrollTop = 0;
   }
@@ -339,6 +340,8 @@
       body = `<label class="muted small" style="grid-column:1/-1">Action adverse<select id="edOpp">${VS.OPP_ACTIONS.map((o) => `<option value="${o.id}" ${o.skill === ev.skill && o.grade === ev.grade ? 'selected' : ''}>${VS.esc(o.label)}</option>`).join('')}</select></label>`;
     } else if (ev.kind === 'point') {
       body = `<label class="muted small" style="grid-column:1/-1">Point attribué à<select id="edWinner"><option value="us" ${ev.winner === 'us' ? 'selected' : ''}>Nous</option><option value="them" ${ev.winner === 'them' ? 'selected' : ''}>${VS.esc(m.opp)}</option></select></label>`;
+    } else if (ev.kind === 'sub') {
+      body = `<label class="muted small">Sort<select id="edOut">${rosterOpts(ev.out)}</select></label><label class="muted small">Entre<select id="edIn">${rosterOpts(ev.in)}</select></label>`;
     } else body = `<p class="muted" style="grid-column:1/-1">${VS.esc(VS.describeText(ev))}. Cette entrée système peut être supprimée ou remplacée par une action.</p>`;
     const modal = VS.modal('Corriger une saisie', `<p class="muted small">La correction peut modifier le score et les rotations des échanges suivants.</p><div class="modal-form">${body}</div>`, [
       { label: 'Supprimer', cls: 'danger', onClick: () => { m.events.splice(ix, 1); redoStack = []; VS.saveMatch(m); refresh(); VS.toast('Saisie supprimée.'); } },
@@ -354,6 +357,7 @@
           updated.kind = 'action'; updated.team = 'us';
         }
         if (w.querySelector('#edOpp')) { const o = VS.OPP_ACTIONS.find((x) => x.id === w.querySelector('#edOpp').value); updated.skill = o.skill; updated.grade = o.grade; updated.team = 'them'; updated.player = null; }
+        if (w.querySelector('#edOut')) { updated.out = +w.querySelector('#edOut').value; updated.in = +w.querySelector('#edIn').value; if (updated.out === updated.in) { VS.toast('Le joueur qui sort et celui qui entre doivent être différents.', 'error'); return false; } }
         if (w.querySelector('#edWinner')) updated.winner = w.querySelector('#edWinner').value;
         m.events[ix] = updated; redoStack = []; VS.saveMatch(m); refresh(); VS.toast('Saisie corrigée.');
       } },
@@ -410,6 +414,27 @@
       { label: 'Annuler', cls: 'ghost' },
       { label: 'Valider', cls: 'primary', onClick: (w) => { appendEvent({ id: VS.uid(), kind: 'sub', out: +w.querySelector('#subOut').value, in: +w.querySelector('#subIn').value }); } },
     ]);
+  };
+  // Corriger la composition de départ d'un set déjà commencé (ou terminé) : tout est recalculé au rejeu.
+  $('btnLineup').onclick = () => {
+    if (configOpen) return;
+    const played = Math.min(st.set, m.sets.length);
+    const setOpts = Array.from({ length: played }, (_, i) => `<option value="${i}" ${i === played - 1 ? 'selected' : ''}>Set ${i + 1}</option>`).join('');
+    const subIssues = () => R.events.filter((e) => e.kind === 'sub' && e.ignored).length;
+    const modal = VS.modal('Composition de départ', `<label class="muted small" style="display:flex;gap:8px;align-items:center;margin-bottom:6px">Set à corriger<select id="luSet">${setOpts}</select></label>
+      <div id="luForm">${VS.lineupForm(m.sets[played - 1], roster)}</div>
+      <p class="muted small" style="margin:8px 0 0">Les actions déjà saisies gardent leur joueur ; seules les rotations (passeur, service, cases mises en avant) sont recalculées.</p>`, [
+      { label: 'Annuler', cls: 'ghost' },
+      { label: 'Enregistrer', cls: 'primary', onClick: (w) => {
+        const c = VS.readLineupForm(w, roster); if (!c) return false;
+        const i = +w.querySelector('#luSet').value, before = subIssues();
+        m.sets[i] = c; VS.saveMatch(m); refresh();
+        const after = subIssues();
+        if (after > before) VS.toast(`Composition du set ${i + 1} enregistrée — ${after - before} remplacement(s) devenu(s) incohérent(s) (joueur sortant absent du terrain) : corrigez-les dans le journal.`, 'error');
+        else VS.toast(`Composition du set ${i + 1} enregistrée.`);
+      } },
+    ]);
+    modal.el.querySelector('#luSet').addEventListener('change', (e) => { modal.el.querySelector('#luForm').innerHTML = VS.lineupForm(m.sets[+e.target.value], roster); });
   };
   $('clearSel').addEventListener('click', () => { selected = null; renderSelection(); });
   $('journal').addEventListener('dblclick', (e) => { const row = e.target.closest('[data-edit]'); if (row) openEdit(row.dataset.edit); });
