@@ -26,7 +26,7 @@
     R: { '#': 'Parfaite', '+': 'Bonne', '!': 'Moyenne', '-': 'Négative', '/': 'Retour direct', '=': 'Ace subi' },
     A: { '#': 'Point', '+': 'Adversaire en difficulté', '!': 'Couverte', '-': 'Facile pour l’adversaire', '/': 'Contrée', '=': 'Faute' },
     B: { '#': 'Point', '+': 'Amorti chez nous', '!': 'Repart chez eux', '-': 'Touché, dur à jouer', '/': 'Contre perdant', '=': 'Faute de filet' },
-    D: { '#': 'Parfaite', '+': 'Positive', '!': 'Moyenne', '-': 'Négative', '/': 'Renvoi', '=': 'Faute' },
+    D: { '#': 'Parfaite, toutes options', '+': 'Attaque construite', '!': 'Attaque en dépannage', '-': 'Pas d\'attaque', '/': 'Renvoi direct', '=': 'Faute' },
     X: { '#': 'Parfaite', '+': 'Bonne', '!': 'Moyenne', '-': 'Négative', '/': 'Renvoyée directement', '=': 'Faute' },
     V: { '#': 'Point', '!': 'Jeu continue', '=': 'Faute' },
   };
