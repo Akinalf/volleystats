@@ -181,3 +181,99 @@ table.vs-table{width:100%;border-collapse:collapse;font-size:13px}
 
 .oppbuttons .vs-btn.pt-us{border-color:#1e3a8a}
 .oppbuttons .vs-btn.pt-them{border-color:#7f1d1d}
+
+/* ===== Tableau de bord : lecture sur téléphone ===== */
+.mob-only,.chips.mob-only{display:none}
+.chips{display:flex;gap:6px;overflow-x:auto;scrollbar-width:none;-webkit-overflow-scrolling:touch}
+.chips::-webkit-scrollbar{display:none}
+.chip{flex:none;display:inline-flex;align-items:center;min-height:38px;padding:0 14px;border-radius:999px;background:var(--panel2);border:1px solid var(--line);color:var(--muted);font:inherit;font-size:13px;text-decoration:none;cursor:pointer;white-space:nowrap}
+.chip.active{background:var(--accent);border-color:var(--accent);color:#1b1400;font-weight:600}
+.dash .fld{display:inline-flex;align-items:center;gap:4px}
+.dash-nav{display:none}
+.tap-tip{position:absolute;z-index:300;background:#1f2d4d;border:1px solid #3a4f80;color:var(--text);padding:7px 10px;border-radius:8px;font-size:12.5px;line-height:1.35;box-shadow:0 8px 24px rgba(0,0,0,.45);pointer-events:none}
+.ro .admin-only,.dash:not(.ro) .ro-only{display:none}
+/* Consultation (non admin) : on masque ce qui mène à la modification des données. */
+.dash.ro .vs-header .head-actions,.dash.ro .vs-header nav a[href^="saisie.html"]{display:none}
+@media (hover:none){
+  .dash #wrap td[title]:not([title=""]),.dash #wrap th[title]:not([title=""]){text-decoration:underline dotted rgba(143,161,192,.7);text-underline-offset:3px}
+}
+@media print{.dash-nav,.tap-tip,.grp-chips{display:none!important}}
+
+@media (max-width:760px){
+  .mob-only{display:initial}
+  .chips.mob-only{display:flex}
+  .desk-only{display:none!important}
+  .dash{-webkit-text-size-adjust:100%}
+  /* En-tête : compact et non collant (la barre des sections prend le relais) */
+  .dash .vs-header{position:static;gap:6px 12px;padding:8px 16px}
+  .dash .vs-brand small{display:none}
+  .dash .vs-header nav{flex:1 1 auto}
+  .dash .vs-header nav a{padding:9px 10px}
+  .dash .vs-header .head-actions{width:100%}
+  .dash .page-head{padding:12px 16px 6px;gap:10px}
+  .dash .page-head h1{font-size:18px}
+  .dash .ph-desc{display:none}
+  .dash .ph-title{width:100%}
+  .dash .dash-filters{width:100%;display:grid;grid-template-columns:minmax(0,1fr) 96px;gap:8px}
+  .dash .fld{display:flex;flex-direction:column;align-items:stretch;gap:3px;min-width:0}
+  .dash select.src{width:100%;max-width:none;min-height:44px;font-size:16px;padding:8px 10px;border-radius:9px}
+  .dash .panel-h .fld-setter{width:100%}
+  /* Barre des sections collante */
+  .dash .dash-nav:not([hidden]){display:flex;position:sticky;top:0;z-index:45;background:rgba(11,18,32,.96);backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px);padding:8px 16px;border-bottom:1px solid var(--line)}
+  .dash .dash-nav .chip{min-height:36px}
+  .dash #wrap>.panel,.dash #wrap>.sect,.dash #wrap>.grid2,.dash #s-graph>.panel{scroll-margin-top:60px}
+  .dash .wrap{padding:10px 12px 40px;gap:12px}
+  .dash .grid2{gap:12px}
+  .dash .panel{padding:12px 10px}
+  .dash .panel-h{align-items:flex-start}
+  /* Résumé */
+  .dash .match{gap:10px}
+  .dash .match .res{font-size:22px}
+  .dash .setchips span{font-size:12px}
+  .dash .kpis{grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
+  .dash .kpi{padding:10px}
+  .dash .kpi .v{font-size:22px}
+  .dash .kpi .l{font-size:12.5px}
+  .dash .kpi .s{font-size:11px;line-height:1.35}
+  /* Onglets au pouce, défilants */
+  .dash .tabs{overflow-x:auto;scrollbar-width:none;-webkit-overflow-scrolling:touch}
+  .dash .tabs::-webkit-scrollbar{display:none}
+  .dash .tab{flex:none;min-height:44px;padding:8px 12px}
+  .dash .grp-chips{margin-bottom:8px}
+  /* Tableaux : plus serrés, 1re colonne figée, défilement horizontal interne */
+  .dash .table-wrap{overflow-x:auto;-webkit-overflow-scrolling:touch;overscroll-behavior-x:contain}
+  .dash .vs-table{font-size:12.5px}
+  .dash .vs-table th,.dash .vs-table td{padding:7px 6px}
+  .dash .vs-table.sticky1 th:first-child,.dash .vs-table.sticky1 td:first-child{position:sticky;left:0;z-index:1;background:var(--panel);box-shadow:1px 0 0 var(--line)}
+  .dash .vs-table.sticky1 tr.rot-best td:first-child{background:linear-gradient(rgba(34,197,94,.08),rgba(34,197,94,.08)) var(--panel)}
+  .dash .vs-table.sticky1 tr.rot-worst td:first-child{background:linear-gradient(rgba(239,68,68,.08),rgba(239,68,68,.08)) var(--panel)}
+  .dash .vs-table td.pl{max-width:98px;overflow:hidden;text-overflow:ellipsis}
+  .dash .vs-table td.pl .pos{display:none}
+  .dash .vs-table td.pl.wrap{white-space:normal;min-width:104px;max-width:124px;line-height:1.25}
+  .dash .vs-table .zlbl{display:none}
+  .dash .dist td.z{min-width:46px;padding:6px 3px}
+  .dash .dist th.zh{white-space:normal;min-width:46px;padding:6px 3px;line-height:1.2;vertical-align:bottom}
+  .dash .dist th.zh .small{font-size:10px;font-weight:400}
+  .dash .vs-table .barcol{display:none}
+  .dash .court-mini{max-width:none}
+  .dash .court-mini div{padding:10px 2px}
+  /* Synthèse par joueur : un groupe de colonnes à la fois */
+  .dash #table:not([data-grp="all"]) .grp-head{display:none}
+  .dash #table[data-grp="bilan"] .c:not(.g-bilan),
+  .dash #table[data-grp="srv"] .c:not(.g-srv),
+  .dash #table[data-grp="rec"] .c:not(.g-rec),
+  .dash #table[data-grp="att"] .c:not(.g-att),
+  .dash #table[data-grp="def"] .c:not(.g-def){display:none}
+  .dash #table:not([data-grp="all"]) .players th.c{white-space:normal;line-height:1.2;vertical-align:bottom}
+  .dash #table:not([data-grp="all"]) .c.sep{border-left:none}
+  .dash #table:not([data-grp="all"]) .c{padding-left:5px;padding-right:5px}
+  .dash #table:not([data-grp="all"]) td.pl{max-width:140px}
+  /* Comparatif : libellés sur plusieurs lignes */
+  .dash .cmp td{white-space:normal}
+  .dash .cmp td:first-child{min-width:120px}
+  .dash .cmp td:not(:first-child){min-width:76px}
+  /* Graphiques en barres adaptés à la largeur */
+  .dash .bar-row{grid-template-columns:minmax(0,104px) minmax(0,1fr) auto;gap:6px}
+  .dash .bar-row>span:first-child{line-height:1.2;overflow-wrap:anywhere}
+  .dash .legend{gap:6px 10px}
+}
