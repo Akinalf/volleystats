@@ -78,7 +78,7 @@
 
   function summary(m) {
     const st = VS.replay(m).state;
-    const res = st.setScores.length ? `<span class="res ${st.setsUs > st.setsThem ? 'win' : st.setsThem > st.setsUs ? 'loss' : ''}">${st.setsUs} – ${st.setsThem}</span>${st.over ? '' : ' <span class="muted small">en cours</span>'}` : '<span class="muted">non commencé</span>';
+    const res = st.setScores.length ? `<span class="res ${st.setsUs > st.setsThem ? 'win' : st.setsThem > st.setsUs ? 'loss' : ''}">${st.setsUs} – ${st.setsThem}</span>${st.over ? '' : ' <span class="muted small">en cours</span>'}` : (st.us || st.them) ? `<span class="muted">Set 1 en cours · ${st.us}–${st.them}</span>` : '<span class="muted">non commencé</span>';
     return `<span class="muted d">${VS.esc(VS.fmtDate(m.date))}</span>
         <div class="o"><div class="opp">vs ${VS.esc(m.opp)}</div><div class="muted small">${VS.esc(m.comp || '')}${st.setScores.length ? ' · ' + st.setScores.map((s) => s.us + '–' + s.them).join(', ') : ''}</div></div>
         <div class="r">${res}</div>`;
