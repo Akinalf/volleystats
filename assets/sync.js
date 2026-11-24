@@ -7,7 +7,7 @@
  *   événement window 'vs:sync-status'   (detail: { status, message }) à chaque changement de statut.
  *
  * Principe :
- *   - Lecture : REST PostgREST (clé publishable), sondage toutes les ~12 s quand la page est visible.
+ *   - Lecture : REST PostgREST (clé publishable), à l'ouverture de la page et au retour sur l'onglet (pas de sondage).
  *     D'abord une liste légère (id, updated_at, deleted, data->updated), puis le contenu des seuls matchs à mettre à jour.
  *   - Méta locale (clé volleystats.syncmeta) : pour chaque match, r = updated_at distant connu, h = empreinte du contenu
  *     au dernier échange. Un match est « modifié localement non envoyé » si son empreinte actuelle ≠ h : c'est dérivé
@@ -26,7 +26,6 @@
   const KEY = CFG.supabaseKey || '';
   const ENABLED = !!(BASE && KEY && window.fetch && window.localStorage);
   const META_KEY = 'syncmeta';
-  const POLL_MS = 12000;
   const DEBOUNCE_MS = 1000;
 
   /* ---------------------------------------------------------------- outils */
@@ -345,16 +344,7 @@
   }
 
   /* ---------------------------------------------------------------- démarrage */
-  let pollTimer = null;
-  function startPolling() {
-    clearInterval(pollTimer);
-    pollTimer = setInterval(() => {
-      if (document.visibilityState === 'hidden') return;
-      if (status === 'syncing') return;
-      sync();
-    }, POLL_MS);
-  }
-
+  // Pas de sondage périodique : une mise à jour à l'ouverture de la page et au retour sur l'onglet suffit.
   if (ENABLED) {
     try {
       if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', renderBadge);
@@ -365,7 +355,6 @@
       // Le code admin a pu changer dans un autre onglet (connexion) : on réessaie.
       window.addEventListener('storage', (ev) => { if (ev.key === 'volleystats.adminCode') { refusedCode = null; sync(); } });
       setTimeout(sync, 0);
-      startPolling();
     } catch (e) { /* rien */ }
   }
 
