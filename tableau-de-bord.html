@@ -311,7 +311,7 @@
   let gSkill = 'A', lastS = null, lastOppEv = [], gRows = [];
   const G_TABS = [['S', 'Service'], ['R', 'Réception'], ['A', 'Attaque'], ['B', 'Contre'], ['D', 'Défense'], ['X', 'Relance']];
   const G_NOTES = {
-    S: 'Service : # ace · + bon (récep. adverse en difficulté, pas de 1re tempo) · ! moyen (récep. adverse bonne, le passeur bouge un peu) · - facile (récep. adverse parfaite) · / retour direct (récep. adverse mauvaise, relance pour nous) · = faute.',
+    S: 'Service : # ace · / retour direct (récep. adverse mauvaise, relance pour nous) · + bon (récep. adverse en difficulté, pas de 1re tempo) · ! moyen (récep. adverse bonne, le passeur bouge un peu) · - facile (récep. adverse parfaite) · = faute.',
     R: 'Réception : # parfaite · + bonne (le passeur bouge un peu) · ! moyenne (dans les 3 m, pas de 1re tempo) · - négative (à plus de 3,5 m du filet ou très basse) · / retour direct · = ace subi. Côté adversaire, # et + ne sont pas distingués (déduit de notre service).',
     A: 'Attaque : # point · + adversaire en difficulté · ! couverte (revient du contre, on reprend) · - facile pour l’adversaire · / contrée · = faute.',
     B: 'Contre : # point · + amorti chez nous (facile à jouer) · ! repart chez eux · - touché, dur à jouer (balle chez nous) · / contre perdant (touché puis out ou tombé chez nous) · = faute de filet.',
@@ -325,6 +325,8 @@
     document.querySelectorAll('#gTabs .tab').forEach((x) => x.classList.toggle('active', x === b));
     renderGrades();
   });
+  /* Ordre des colonnes : au service, le retour direct (/) est le 2e meilleur résultat, juste après l'ace. */
+  const gOrder = (sk) => (sk === 'S' ? ['#', '/', '+', '!', '-', '='] : VS.GRADE_ORDER);
   function renderGrades() {
     if (!lastS) return;
     const sk = gSkill, label = VS.SKILLS[sk].label, S = lastS;
@@ -336,17 +338,17 @@
     const alpha = (p) => Math.round(20 + p * 200).toString(16).padStart(2, '0');
     const body = gRows.map((r) => {
       const tot = r.c.tot;
-      const cells = VS.GRADE_ORDER.map((g) => {
+      const cells = gOrder(sk).map((g) => {
         const n = r.c[g];
         if (!n) return '<td class="z muted">–</td>';
         const p = n / tot;
         return clip(r.evs.filter((e) => e.grade === g), `${r.text} — ${label} ${g} (${VS.hint(sk, g)})`, `${Math.round(p * 100)} %<small>${n}</small>`)
           .replace('<td class="', `<td style="background:${VS.GRADES[g].color}${alpha(p)}" class="z `);
       }).join('');
-      const bar = `<div class="bar" style="min-width:140px">${VS.GRADE_ORDER.map((g) => `<i style="width:${tot ? (100 * r.c[g]) / tot : 0}%;background:${VS.GRADES[g].color}" title="${VS.esc(g)} : ${r.c[g]}"></i>`).join('')}</div>`;
+      const bar = `<div class="bar" style="min-width:140px">${gOrder(sk).map((g) => `<i style="width:${tot ? (100 * r.c[g]) / tot : 0}%;background:${VS.GRADES[g].color}" title="${VS.esc(g)} : ${r.c[g]}"></i>`).join('')}</div>`;
       return `<tr style="${r.cls === 'tot' ? 'border-top:2px solid var(--line)' : ''}"><td>${r.html}</td><td><b>${tot}</b></td>${cells}<td>${bar}</td></tr>`;
     }).join('');
-    $('grades').innerHTML = gRows.length > 1 || S.team[sk].tot ? `<table class="vs-table dist"><thead><tr><th>Joueur</th><th>Total</th>${VS.GRADE_ORDER.map((g) => `<th style="text-align:center">${VS.gchip(g)}<br><span class="small">${VS.esc(VS.hint(sk, g))}</span></th>`).join('')}<th>Répartition</th></tr></thead><tbody>${body}</tbody></table>`
+    $('grades').innerHTML = gRows.length > 1 || S.team[sk].tot ? `<table class="vs-table dist"><thead><tr><th>Joueur</th><th>Total</th>${gOrder(sk).map((g) => `<th style="text-align:center">${VS.gchip(g)}<br><span class="small">${VS.esc(VS.hint(sk, g))}</span></th>`).join('')}<th>Répartition</th></tr></thead><tbody>${body}</tbody></table>`
       : `<div class="empty-note">Aucune action « ${label} » pour ce filtre.</div>`;
     $('gNote').textContent = G_NOTES[sk];
   }
@@ -354,8 +356,8 @@
     if (!gRows.length) return;
     const sk = gSkill;
     VS.downloadCSV(`repartition-${VS.SKILLS[sk].label.toLowerCase()}-${m.date}.csv`,
-      ['Joueur', 'Total'].concat(VS.GRADE_ORDER.flatMap((g) => [`${g} ${VS.hint(sk, g)} (nb)`, `${g} (%)`])),
-      gRows.map((r) => [r.text, r.c.tot].concat(VS.GRADE_ORDER.flatMap((g) => [r.c[g], r.c.tot ? Math.round((100 * r.c[g]) / r.c.tot) : '']))));
+      ['Joueur', 'Total'].concat(gOrder(sk).flatMap((g) => [`${g} ${VS.hint(sk, g)} (nb)`, `${g} (%)`])),
+      gRows.map((r) => [r.text, r.c.tot].concat(gOrder(sk).flatMap((g) => [r.c[g], r.c.tot ? Math.round((100 * r.c[g]) / r.c.tot) : '']))));
   };
   render();
 })();
