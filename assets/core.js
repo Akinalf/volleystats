@@ -430,18 +430,48 @@
   }
   const LOGO = '<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 2a10 10 0 0 0 0 20M2.5 9.5c5 0 9 2 12 7M21.5 9.5c-5-1-10 0-14 4"/></svg>';
   function header(page, m) {
+    // Rôle : l’admin (code validé, voir auth.js) a la navigation complète ; un visiteur ne fait que consulter.
+    // Masquer des liens n’est que de l’ergonomie : les écritures sont protégées côté serveur.
+    const admin = !!(global.VS && global.VS.admin && global.VS.admin.isAdmin());
     const id = m ? m.id : load('current');
     const q = id ? '?match=' + encodeURIComponent(id) : '';
-    const link = (key, href, label) => `<a href="${href}" class="${page === key ? 'active' : ''}">${label}</a>`;
+    const link = (key, href, label) => `<a href="${href}" class="${page === key ? 'active' : ''}"${page === key ? ' aria-current="page"' : ''}>${label}</a>`;
+    const nav = link('home', 'index.html', 'Matchs')
+      + (admin && id ? link('entry', 'saisie.html' + q, 'Saisie') : '')
+      + link('dash', 'tableau-de-bord.html' + q, 'Tableau de bord');
+    const actions = admin
+      ? (m ? '<button type="button" class="vs-btn sm ghost" data-vs="matchRoster">Effectif du match</button>' : '')
+        + '<button type="button" class="vs-btn sm ghost" data-vs="template">Modèle d’effectif</button>'
+        + '<button type="button" class="vs-btn sm ghost" data-vs="logout" title="Se déconnecter de l’accès admin sur cet appareil">Déconnexion</button>'
+      : '<button type="button" class="vs-btn sm ghost vs-admin-btn" data-vs="login" title="Connexion admin">Admin</button>';
     const h = document.createElement('header');
-    h.className = 'vs-header'; h.style.flex = 'none';
+    h.className = 'vs-header' + (admin ? ' is-admin' : ' is-visitor'); h.style.flex = 'none';
     h.innerHTML = `<a class="vs-brand" href="index.html"><span class="vs-logo">${LOGO}</span>VolleyStats${m ? ` <small>vs ${esc(m.opp)} · ${esc(fmtDate(m.date))}</small>` : ''}</a>
-      <nav>${link('home', 'index.html', 'Matchs')}${id ? link('entry', 'saisie.html' + q, 'Saisie') + link('dash', 'tableau-de-bord.html' + q, 'Tableau de bord') : ''}</nav>
-      <div class="head-actions">${m ? '<button class="vs-btn sm ghost" data-vs="matchRoster">Effectif du match</button>' : ''}<button class="vs-btn sm ghost" data-vs="template">Modèle d’effectif</button></div>`;
+      <nav aria-label="Navigation principale">${nav}</nav>
+      <div class="head-actions">${actions}</div>`;
     document.body.insertBefore(h, document.body.firstChild);
+    // Petit écran : marque + actions sur la 1re ligne, navigation pleine largeur dessous, cibles au doigt.
+    // (Règles à déplacer dans app.css si l’on préfère ; elles ne s’appliquent qu’à l’en-tête.)
+    if (!document.getElementById('vs-header-css')) {
+      const css = document.createElement('style'); css.id = 'vs-header-css';
+      css.textContent = '@media (max-width:640px){.vs-header{gap:8px 10px;padding:8px 12px}.vs-header .vs-brand{flex:1 1 auto;min-width:0}'
+        + '.vs-header .vs-brand small{display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}'
+        + '.vs-header nav{order:3;flex:1 1 100%;gap:6px}.vs-header nav a{flex:1 1 0;text-align:center;padding:10px 4px;font-size:13.5px;white-space:nowrap}'
+        + '.vs-header .head-actions .vs-btn{min-height:40px}}';
+      document.head.appendChild(css);
+    }
     h.addEventListener('click', (ev) => {
       const b = ev.target.closest('[data-vs]'); if (!b) return;
-      if (b.dataset.vs === 'template') {
+      const A = global.VS.admin;
+      if (b.dataset.vs === 'login' && A) {
+        A.prompt().then((ok) => { if (ok) { toast('Connecté en admin', 'ok'); setTimeout(() => location.reload(), 400); } });
+      } else if (b.dataset.vs === 'logout' && A) {
+        A.logout();
+        if (page === 'entry') location.replace('tableau-de-bord.html' + q);
+        else location.reload();
+      } else if (!admin) {
+        return;
+      } else if (b.dataset.vs === 'template') {
         rosterEditor('Modèle d’effectif', 'Utilisé pour les prochains matchs créés. Les matchs existants gardent leur propre effectif.', baseRoster(), (r) => { save('rosterTemplate', r); toast('Modèle d’effectif enregistré', 'ok'); });
       } else if (b.dataset.vs === 'matchRoster' && m) {
         const fresh = getMatch(m.id) || m;

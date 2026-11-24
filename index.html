@@ -13,20 +13,40 @@
   .res{font:700 16px Consolas,monospace}
   .res.win{color:#86efac}.res.loss{color:#fca5a5}
   .vs-modal input[type=text],.vs-modal input[type=date]{margin-bottom:8px}
+  .m-row .d{white-space:nowrap}
+  a.m-row{color:inherit;text-decoration:none;border-radius:8px}
+  a.m-row:hover,a.m-row:focus-visible{background:var(--panel2)}
+  .m-row .go{color:var(--accent);font-weight:600;white-space:nowrap}
+  .visitor .m-row{grid-template-columns:110px 1fr 150px auto}
+  .visitor-empty{text-align:center;padding:28px 12px}
+  .visitor-empty b{display:block;font-size:16px;margin-bottom:4px;color:var(--text)}
+  @media (max-width:700px){
+    .home{padding:14px 12px 32px;gap:12px}
+    .home .sect-title{flex-direction:column;align-items:stretch}
+    .home .sect-title .head-actions .vs-btn{flex:1 1 auto;min-height:44px}
+    .panel#list{padding:4px 8px}
+    .m-row,.visitor .m-row{grid-template-columns:1fr auto;grid-template-areas:"o r" "d n" "a a";gap:4px 10px;padding:12px 4px}
+    .m-row .o{grid-area:o;min-width:0}.m-row .r{grid-area:r;text-align:right}
+    .m-row .d{grid-area:d}.m-row .n{grid-area:n;text-align:right}.m-row .a{grid-area:a}
+    .visitor .m-row{grid-template-areas:"o r" "d g"}.m-row .go{grid-area:g;text-align:right}
+    .m-row .opp{overflow-wrap:anywhere}
+    .m-row .a{margin-top:6px}.m-row .a .vs-btn{min-height:40px;flex:1 1 auto}
+    .m-row .a .vs-btn.danger{flex:0 0 44px}
+  }
 </style>
 </head>
 <body>
 <main class="home">
   <div class="sect-title">
-    <div><h1>Mes matchs</h1><p class="muted" style="margin:0">Saisie des statistiques par boutons à partir de la vidéo, pour notre équipe et l'adversaire.</p></div>
-    <div class="head-actions">
+    <div><h1 id="pageTitle">Mes matchs</h1><p class="muted" style="margin:0" id="pageIntro">Saisie des statistiques par boutons à partir de la vidéo, pour notre équipe et l'adversaire.</p></div>
+    <div class="head-actions" id="adminActions">
       <button class="vs-btn primary" id="btnNew">Nouveau match</button>
       <label class="vs-btn">Importer (.json)<input type="file" id="imp" accept=".json,application/json" hidden></label>
       <button class="vs-btn ghost" id="btnDemo">Créer un match d'exemple</button>
     </div>
   </div>
   <div class="panel" id="list"></div>
-  <div class="panel">
+  <div class="panel" id="howto">
     <h3>Comment ça marche</h3>
     <ol class="muted" style="margin:6px 0 0;padding-left:20px;line-height:1.7">
       <li>Créez un match et son effectif (numéros, noms et postes). Chaque fiche conserve sa propre liste ; vous pouvez aussi modifier le modèle pour les futurs matchs ou l’effectif d’un match depuis son bouton « Effectif du match ».</li>
@@ -46,21 +66,42 @@
 (function () {
   VS.header('home', null);
   const $ = (id) => document.getElementById(id);
+  // Visiteur (coéquipier) : consultation seule. Le masquage n’est que de l’ergonomie ; les écritures sont vérifiées côté serveur.
+  const admin = VS.admin.isAdmin();
+  if (!admin) {
+    document.body.classList.add('visitor');
+    $('adminActions').remove();
+    $('howto').remove();
+    $('pageTitle').textContent = 'Matchs';
+    $('pageIntro').textContent = 'Statistiques des matchs de l’équipe. Touchez un match pour ouvrir son tableau de bord.';
+  }
+
+  function summary(m) {
+    const st = VS.replay(m).state;
+    const res = st.setScores.length ? `<span class="res ${st.setsUs > st.setsThem ? 'win' : st.setsThem > st.setsUs ? 'loss' : ''}">${st.setsUs} – ${st.setsThem}</span>${st.over ? '' : ' <span class="muted small">en cours</span>'}` : '<span class="muted">non commencé</span>';
+    return `<span class="muted d">${VS.esc(VS.fmtDate(m.date))}</span>
+        <div class="o"><div class="opp">vs ${VS.esc(m.opp)}</div><div class="muted small">${VS.esc(m.comp || '')}${st.setScores.length ? ' · ' + st.setScores.map((s) => s.us + '–' + s.them).join(', ') : ''}</div></div>
+        <div class="r">${res}</div>`;
+  }
+
+  function renderVisitor(list) {
+    if (!list.length) { $('list').innerHTML = '<div class="empty-note visitor-empty"><b>Aucun match publié pour l’instant</b>Les statistiques apparaîtront ici dès qu’un match sera publié.</div>'; return; }
+    $('list').innerHTML = list.map((m) => `<a class="m-row" href="tableau-de-bord.html?match=${encodeURIComponent(m.id)}">${summary(m)}<span class="go">Tableau de bord ›</span></a>`).join('');
+  }
 
   function render() {
     const list = VS.listMatches();
+    if (!admin) { renderVisitor(list); return; }
     if (!list.length) { $('list').innerHTML = '<div class="empty-note">Aucun match pour l\'instant. Cliquez sur « Nouveau match » ou créez un match d\'exemple pour découvrir l\'outil.</div>'; return; }
     $('list').innerHTML = list.map((m) => {
-      const st = VS.replay(m).state;
       const n = m.events.filter((e) => VS.isAction(e)).length;
-      const res = st.setScores.length ? `<span class="res ${st.setsUs > st.setsThem ? 'win' : st.setsThem > st.setsUs ? 'loss' : ''}">${st.setsUs} – ${st.setsThem}</span>${st.over ? '' : ' <span class="muted small">en cours</span>'}` : '<span class="muted">non commencé</span>';
-      return `<div class="m-row"><span class="muted">${VS.esc(VS.fmtDate(m.date))}</span>
-        <div><div class="opp">vs ${VS.esc(m.opp)}</div><div class="muted small">${VS.esc(m.comp || '')}${st.setScores.length ? ' · ' + st.setScores.map((s) => s.us + '–' + s.them).join(', ') : ''}</div></div>
-        <div>${res}</div><span class="muted small">${n} action(s)</span>
-        <div class="head-actions"><a class="vs-btn sm primary" href="saisie.html?match=${m.id}">Saisie</a><a class="vs-btn sm" href="tableau-de-bord.html?match=${m.id}">Tableau de bord</a>
+      return `<div class="m-row">${summary(m)}<span class="muted small n">${n} action(s)</span>
+        <div class="head-actions a"><a class="vs-btn sm primary" href="saisie.html?match=${m.id}">Saisie</a><a class="vs-btn sm" href="tableau-de-bord.html?match=${m.id}">Tableau de bord</a>
           <button class="vs-btn sm ghost" data-exp="${m.id}" title="Exporter le match (sauvegarde .json)">Exporter</button><button class="vs-btn sm danger" data-del="${m.id}" title="Supprimer">×</button></div></div>`;
     }).join('');
   }
+  window.addEventListener('vs:remote-update', render); // matchs reçus du serveur (sync.js)
+  if (!admin) { render(); return; }
   $('list').addEventListener('click', (e) => {
     const b = e.target.closest('button'); if (!b) return;
     if (b.dataset.exp) { const m = VS.getMatch(b.dataset.exp); VS.downloadFile(`match-${m.date}-${m.opp.replace(/[^\w-]+/g, '_')}.json`, JSON.stringify(m, null, 1), 'application/json'); }

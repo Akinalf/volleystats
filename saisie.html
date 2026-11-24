@@ -123,6 +123,9 @@
 <script src="assets/sync.js"></script>
 <script>
 (function () {
+  // Saisie réservée à l’admin : contrôle synchrone avant toute lecture/écriture de données
+  // (déjà connecté = aucun appel réseau ; sinon fenêtre de code, puis rechargement ou retour au tableau de bord).
+  if (!VS.admin || !VS.admin.require()) return;
   const $ = (id) => document.getElementById(id);
   const m = VS.currentMatch();
   if (!m) { location.href = 'index.html'; return; }
