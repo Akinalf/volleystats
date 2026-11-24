@@ -223,8 +223,8 @@ table.vs-table{width:100%;border-collapse:collapse;font-size:13px}
   .dash .dash-nav:not([hidden]){gap:8px;align-items:center}.dash .dash-nav .chips{flex:1;min-width:0}
   .dash .dash-nav .chip{min-height:36px}
   .dash .nav-set{display:none;flex:none;-webkit-appearance:none;appearance:none;min-height:36px;max-width:96px;padding:0 26px 0 12px;border-radius:999px;border:1.5px solid var(--accent);background:var(--panel2) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 10 6'%3E%3Cpath d='M1 1l4 4 4-4' fill='none' stroke='%23ffb703' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E") no-repeat right 10px center/10px 6px;color:var(--text);font:inherit;font-size:16px;font-weight:600;line-height:1}
-  .dash .dash-nav.show-set .nav-set{display:block;animation:navset-in .15s ease-out}
-  @keyframes navset-in{from{opacity:0;transform:translateX(-6px)}to{opacity:1;transform:none}}
+  .dash .dash-nav.show-set .nav-set{display:block;order:2;animation:navset-in .15s ease-out}
+  @keyframes navset-in{from{opacity:0;transform:translateX(6px)}to{opacity:1;transform:none}}
   .dash #wrap>.panel,.dash #wrap>.sect,.dash #wrap>.grid2,.dash #s-graph>.panel{scroll-margin-top:60px}
   .dash .wrap{padding:10px 12px 40px;gap:12px}
   .dash .grid2{gap:12px}
