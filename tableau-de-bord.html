@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="theme-color" content="#0a1324">
 <title>Tableau de bord — VolleyStats</title>
-<link rel="stylesheet" href="assets/app.css?v=20261124b">
+<link rel="stylesheet" href="assets/app.css?v=20261124c">
 <style>
   .wrap{padding:8px 16px 30px;display:flex;flex-direction:column;gap:14px}
   .sect{display:flex;flex-direction:column;gap:14px;min-width:0}
@@ -47,13 +47,13 @@
   </div>
   <div class="head-actions dash-filters">
     <label class="muted small fld fld-match"><span>Match</span> <select class="src" id="matchSel"></select></label>
-    <label class="muted small fld fld-set"><span>Set</span> <select class="src" id="fSet"></select></label>
+    <div class="muted small fld fld-set"><span>Sets</span> <div class="set-chips" id="fSet" role="group" aria-label="Sets affichés"></div></div>
     <button class="vs-btn sm desk-only" id="btnCsv">Exporter CSV</button>
     <button class="vs-btn sm desk-only" onclick="window.print()">Imprimer / PDF</button>
   </div>
 </div>
 <nav class="dash-nav" id="dashNav" aria-label="Sections du tableau de bord">
-  <select class="nav-set" id="fSetNav" aria-label="Set affiché"></select>
+  <div class="nav-set-wrap"><button type="button" class="nav-set" id="fSetNav" aria-haspopup="true" aria-expanded="false">Tous</button><div class="set-pop" id="setPop" hidden><div class="set-chips" role="group" aria-label="Sets affichés"></div></div></div>
   <div class="chips"><a class="chip" href="#s-resume">Résumé</a><a class="chip" href="#s-qualite">Qualité</a><a class="chip" href="#s-joueurs">Joueurs</a><a class="chip" href="#s-cmp">Comparatif</a><a class="chip" href="#s-passe">Passeur</a><a class="chip" href="#s-graph">Graphiques</a><a class="chip" href="#s-rot">Rotations</a></div>
 </nav>
 <div class="wrap" id="emptyWrap" hidden><div class="panel empty-note">Aucun match pour l’instant. <span class="admin-only"><a href="index.html">Créez un match</a> ou un match d’exemple.</span><span class="ro-only">Les matchs apparaîtront ici dès qu’ils auront été saisis.</span></div></div>
@@ -81,10 +81,10 @@
     <div class="panel" id="s-rot" style="grid-column:1/-1"><h3>Rotations <span class="muted small">(position du passeur)</span></h3><div id="chRot"></div></div>
   </div>
 </div>
-<script src="assets/core.js?v=20261124b"></script>
-<script src="assets/config.js?v=20261124b"></script>
-<script src="assets/auth.js?v=20261124b"></script>
-<script src="assets/sync.js?v=20261124b"></script>
+<script src="assets/core.js?v=20261124c"></script>
+<script src="assets/config.js?v=20261124c"></script>
+<script src="assets/auth.js?v=20261124c"></script>
+<script src="assets/sync.js?v=20261124c"></script>
 <script>
 (function () {
   const $ = (id) => document.getElementById(id);
@@ -94,6 +94,7 @@
   document.body.classList.toggle('ro', !isAdmin());
 
   // État courant, rechargé depuis le localStorage par loadState() (au démarrage et à chaque mise à jour distante).
+  let selSets = new Set(), playedSets = []; // sets affichés (vide = tous)
   let m = null, roster = [], st = null, allEv = [], events = [];
   let gSkill = 'A', tGroup = 'bilan', lastS = null, lastOppEv = [], gRows = [];
 
@@ -122,10 +123,8 @@
     allEv = R.events.filter((e) => !e.ignored);
     $('matchSel').innerHTML = VS.listMatches().map((x) => `<option value="${x.id}" ${x.id === m.id ? 'selected' : ''}>${VS.esc(VS.fmtDate(x.date))} · vs ${VS.esc(x.opp)}</option>`).join('');
     $('oppTitle').textContent = m.opp;
-    const prevSet = keepFilters ? $('fSet').value : 'all';
-    const sets = [...new Set(allEv.map((e) => e.set))];
-    $('fSet').innerHTML = '<option value="all">Tous</option>' + sets.map((s) => `<option value="${s}">Set ${s}</option>`).join('');
-    $('fSet').value = sets.map(String).includes(prevSet) ? prevSet : 'all';
+    playedSets = [...new Set(allEv.map((e) => e.set))].sort((a, b) => a - b);
+    selSets = keepFilters ? new Set([...selSets].filter((s) => playedSets.includes(s))) : new Set();
     if (!keepFilters) $('setterSel').value = '';
     return true;
   }
@@ -137,9 +136,8 @@
 
   function render() {
     if (!m) return;
-    const fs = $('fSet').value;
-    $('fSetNav').innerHTML = $('fSet').innerHTML; $('fSetNav').value = fs; // copie collante du choix du set (mobile)
-    events = fs === 'all' ? allEv : allEv.filter((e) => e.set === +fs);
+    renderSetChips();
+    events = selSets.size ? allEv.filter((e) => selSets.has(e.set)) : allEv;
     const S = VS.computeStats(events, 'us');
     const oppEv = VS.deriveOpp(events);
     const O = VS.computeStats(oppEv, 'them');
@@ -364,8 +362,35 @@
   }
 
   $('btnCsv').onclick = () => { if (m) VS.exportCSV(m, allEv); };
-  $('fSet').addEventListener('change', render);
-  $('fSetNav').addEventListener('change', () => { $('fSet').value = $('fSetNav').value; render(); });
+  /* ---------- Choix des sets (plusieurs possibles) ---------- */
+  // selSets vide = tous les sets. Les boutons du haut de page et ceux du menu de la barre collante sont identiques.
+  function setsLabel() {
+    if (!selSets.size) return 'Tous';
+    const a = [...selSets].sort((x, y) => x - y);
+    return (a.length === 1 ? 'Set ' : 'Sets ') + a.join('+');
+  }
+  function renderSetChips() {
+    const html = `<button type="button" class="chip sc ${selSets.size ? '' : 'active'}" data-set="all">Tous</button>`
+      + playedSets.map((s) => `<button type="button" class="chip sc ${selSets.has(s) ? 'active' : ''}" data-set="${s}" aria-pressed="${selSets.has(s)}">${s}</button>`).join('');
+    document.querySelectorAll('.set-chips').forEach((el) => { el.innerHTML = html; });
+    $('fSetNav').textContent = setsLabel();
+  }
+  function toggleSet(v) {
+    if (v === 'all') selSets.clear();
+    else {
+      const n = +v;
+      if (selSets.has(n)) selSets.delete(n); else selSets.add(n);
+      if (selSets.size === playedSets.length) selSets.clear(); // tout coché = tous les sets
+    }
+    render();
+  }
+  document.addEventListener('click', (e) => {
+    const b = e.target.closest('.set-chips [data-set]');
+    if (b) { toggleSet(b.dataset.set); return; }
+    const pop = $('setPop');
+    if (e.target.closest('#fSetNav')) { pop.hidden = !pop.hidden; $('fSetNav').setAttribute('aria-expanded', String(!pop.hidden)); return; }
+    if (!pop.hidden && !e.target.closest('#setPop')) { pop.hidden = true; $('fSetNav').setAttribute('aria-expanded', 'false'); }
+  });
   $('setterSel').addEventListener('change', renderDist);
   // Changement de match sur place (sans rechargement) : l’URL garde le match choisi.
   $('matchSel').addEventListener('change', () => {
@@ -448,7 +473,10 @@
   const nav = $('dashNav');
   // Le set n'apparaît dans la barre collante que lorsque le sélecteur du haut de page n'est plus visible.
   if ('IntersectionObserver' in window) {
-    new IntersectionObserver(([en]) => nav.classList.toggle('show-set', !en.isIntersecting), { rootMargin: '-56px 0px 0px 0px' }).observe(document.querySelector('.fld-set'));
+    new IntersectionObserver(([en]) => {
+      nav.classList.toggle('show-set', !en.isIntersecting);
+      if (en.isIntersecting) $('setPop').hidden = true; // menu refermé quand on remonte
+    }, { rootMargin: '-56px 0px 0px 0px' }).observe(document.querySelector('.fld-set'));
   } else nav.classList.add('show-set');
   nav.addEventListener('click', (e) => {
     const a = e.target.closest('a[href^="#"]'); if (!a) return;
@@ -465,8 +493,8 @@
       const firstVisible = links.find((a) => visible.get(a.getAttribute('href').slice(1)));
       if (!firstVisible) return;
       links.forEach((a) => a.classList.toggle('active', a === firstVisible));
-      const l = firstVisible.offsetLeft - 16;
-      if (nav.scrollWidth > nav.clientWidth) nav.scrollTo({ left: Math.max(0, l), behavior: 'smooth' });
+      const strip = nav.querySelector('.chips'), l = firstVisible.offsetLeft - strip.offsetLeft - 16;
+      if (strip.scrollWidth > strip.clientWidth) strip.scrollTo({ left: Math.max(0, l), behavior: 'smooth' });
     }, { rootMargin: '-64px 0px -55% 0px' });
     links.forEach((a) => { const el = document.querySelector(a.getAttribute('href')); if (el) io.observe(el); });
   }
