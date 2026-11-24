@@ -56,7 +56,7 @@
   .point-line{margin:4px 3px 1px;padding:5px;border-radius:4px;font-size:11px;font-weight:700;background:rgba(59,130,246,.13)}.point-line.them{background:rgba(239,68,68,.13)}
   .journal-panel{flex:1;min-height:0;display:flex;flex-direction:column}.journal-panel .tabs{margin:0;flex:none}.journal{flex:1;min-height:0;overflow:auto}.journal-group{border-bottom:1px solid var(--line);padding:2px 0}.jg-head{position:sticky;top:0;z-index:1;background:#0d1729;padding:3px 5px;display:flex;justify-content:space-between;font-size:10px;color:var(--muted)}
   .jrow{display:grid;grid-template-columns:28px 1fr 58px 25px;align-items:center;gap:4px;padding:3px 4px;border-radius:4px;font-size:11px;cursor:pointer}.jrow:hover{background:#1b2a46}.jrow .desc{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.jrow .score-small{text-align:right;font:10px Consolas,monospace;color:var(--muted)}.jrow .edit{border:0;border-radius:4px;background:transparent;color:var(--muted);cursor:pointer;padding:1px 3px}.jrow .edit:hover{color:var(--accent);background:var(--panel2)}.jrow.point{font-weight:600}
-  .jgap{position:relative;z-index:2;height:9px;margin:-4px 2px;display:flex;align-items:center;gap:3px;cursor:copy;opacity:0;transition:opacity .08s}.jgap:hover,.jgap.on{opacity:1}.jgap i{flex:1;height:2px;border-radius:2px;background:var(--accent)}.jgap svg{flex:none;display:block;width:16px;height:16px}.jgap.on i{height:3px}.ins-bar{flex:none;display:flex;align-items:center;gap:6px;margin:4px 0;padding:5px 7px;border:1px solid var(--accent);border-radius:6px;background:rgba(255,183,3,.1);font-size:11px}.ins-bar[hidden]{display:none}.ins-bar .t{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}body.inserting .board{outline:2px solid var(--accent);outline-offset:-2px}
+  .jgap{position:relative;z-index:2;height:9px;margin:-4px 2px;display:flex;align-items:center;gap:3px;cursor:copy;opacity:0;transition:opacity .08s}.jgap:hover,.jgap.on{opacity:1}.jgap i{flex:1;height:2px;border-radius:2px;background:var(--accent)}.jgap svg{flex:none;display:block;width:16px;height:16px}.jgap.on i{height:3px}
   .quick-wrap{overflow:auto;flex:1;min-height:0}.quick-wrap .vs-table{font-size:10px}.quick-wrap .vs-table td,.quick-wrap .vs-table th{padding:4px 5px}
   .oppbar{flex:none;margin:0 12px 8px;background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:6px 8px;display:flex;align-items:center;gap:7px}.oppbar h3{margin:0 4px 0 0;white-space:nowrap;font-size:13px;color:#fca5a5}.oppbuttons{display:grid;grid-template-columns:repeat(5,minmax(100px,1fr));gap:5px;flex:1}.oppbuttons .vs-btn{padding:6px 5px;font-size:11px;line-height:1.05;white-space:normal;min-height:34px}
   .modal-form{display:grid;grid-template-columns:1fr 1fr;gap:8px}.modal-form label{display:flex;flex-direction:column;gap:3px;font-size:12px;color:var(--muted)}
@@ -136,9 +136,8 @@
   let selected = null; // {player,skill}
   let redoStack = [];  // saisies annulées, rétablies avec Ctrl+Y
   let keepLogScroll = false; // garder la position du journal au prochain rendu (correction ✎)
-  let RI = null;              // rejeu jusqu’au point d’insertion (= R hors insertion)
-  let insertBefore = null;    // mode insertion : id de l’action AVANT laquelle les saisies sont placées
-  let inserted = [];          // ids insérés pendant ce mode (pour Annuler)
+  let RI = null;              // rejeu servant à la pré-sélection (le match entier, ou jusqu’à un point d’insertion)
+  let added = [];             // ids ajoutés (en fin de match ou insérés), du plus ancien au plus récent : pour Annuler
 
   const ACTIONS = [
     ['S', 'Service', 'S'], ['R', 'Récep.', 'R'], ['E', 'Passe', 'P'],
@@ -247,11 +246,8 @@
   }
   function appendEvent(ev) {
     if (locked()) return;
-    redoStack = [];
-    if (insertBefore) { m.events.splice(m.events.findIndex((e) => e.id === insertBefore), 0, ev); inserted.push(ev.id); keepLogScroll = true; }
-    else m.events.push(ev);
+    redoStack = []; m.events.push(ev); added.push(ev.id);
     flashId = ev.id; VS.saveMatch(m); refresh();
-    if (insertBefore) return;
     const last = R.events[R.events.length - 1];
     if (last && last.setEnd) VS.toast(`Set ${last.set} ${last.us > last.them ? 'gagné' : 'perdu'} ${last.us}–${last.them}`, 'ok');
   }
@@ -294,38 +290,24 @@
   }
   function undo() {
     if (configOpen || !m.events.length) return;
-    if (insertBefore) { // en insertion : on retire la dernière action insérée, pas la dernière du match
-      const id = inserted.pop();
-      if (!id) { VS.toast('Rien à annuler dans cette insertion.'); return; }
-      const i = m.events.findIndex((e) => e.id === id); if (i < 0) return;
-      redoStack.push({ ev: m.events.splice(i, 1)[0], before: insertBefore }); keepLogScroll = true;
-    } else redoStack.push({ ev: m.events.pop(), before: null });
+    // On retire la dernière action ajoutée, même si elle a été insérée au milieu du match.
+    let i = -1;
+    while (added.length && i < 0) {
+      const id = added.pop();
+      i = m.events.findIndex((e) => e.id === id); // une action ajoutée puis supprimée à la main est ignorée
+    }
+    if (i < 0) i = m.events.length - 1;
+    const ev = m.events.splice(i, 1)[0], next = m.events[i];
+    redoStack.push({ ev, before: next ? next.id : null });
+    if (next) keepLogScroll = true;
     selected = null; VS.saveMatch(m); refresh(); VS.toast('Dernière saisie annulée (Ctrl+Y pour rétablir).');
   }
   function redo() {
     if (configOpen || !redoStack.length) return;
     const { ev, before } = redoStack.pop(), i = before ? m.events.findIndex((e) => e.id === before) : -1;
-    if (i >= 0) { m.events.splice(i, 0, ev); if (before === insertBefore) inserted.push(ev.id); keepLogScroll = true; } else m.events.push(ev);
+    if (i >= 0) { m.events.splice(i, 0, ev); keepLogScroll = true; } else m.events.push(ev);
+    added.push(ev.id);
     flashId = ev.id; selected = null; VS.saveMatch(m); refresh(); VS.toast('Saisie rétablie.');
-  }
-  /* Mode insertion : les saisies (grille, adversaire, points…) se placent avant l’action choisie. */
-  function startInsert(id) {
-    if (configOpen) return;
-    if (insertBefore === id) { endInsert(); return; }
-    insertBefore = id; inserted = []; selected = null; keepLogScroll = true; refresh();
-  }
-  function endInsert() {
-    if (!insertBefore) return;
-    insertBefore = null; inserted = []; selected = null; keepLogScroll = true; refresh();
-  }
-  function renderInsertBar() {
-    document.body.classList.toggle('inserting', !!insertBefore);
-    const bar = $('insBar');
-    bar.hidden = !insertBefore;
-    if (!insertBefore) return;
-    const next = R.events.find((e) => e.id === insertBefore), prev = RI.events[RI.events.length - 1];
-    const where = prev ? `après « ${VS.describeText(prev, roster)} »` : 'au début du match';
-    bar.querySelector('.t').innerHTML = `<b>✚ Insertion</b> ${VS.esc(where)}${next ? ` · avant « ${VS.esc(VS.describeText(next, roster))} »` : ''}${inserted.length ? ` · <b>${inserted.length}</b> ajoutée(s)` : ''}`;
   }
 
   function renderBoard() {
@@ -363,7 +345,7 @@
   function renderLog() {
     const groups = groupEvents().slice().reverse();
     const list = groups.map((g) => `<div class="journal-group"><div class="jg-head"><span>Set ${g.set} · Échange ${g.rally}${g.winner ? ` · point ${g.winner === 'us' ? 'Nous' : VS.esc(m.opp)}` : ' · en cours'}</span><span>${g.us}–${g.them}</span></div>
-      ${g.list.map((e, i) => `<div class="jgap ${insertBefore === e.id ? 'on' : ''}" data-insert="${e.id}" title="Insérer une ou des actions ici"><i></i><svg viewBox="0 0 16 16" aria-hidden="true"><circle cx="8" cy="8" r="8" fill="var(--accent)"/><path d="M8 3.5v9M3.5 8h9" stroke="#111827" stroke-width="2" stroke-linecap="round"/></svg><i></i></div><div class="jrow ${e.winner ? 'point' : ''} ${flashId === e.id ? 'flash' : ''}" data-edit="${e.id}" title="Cliquez sur le crayon pour corriger"><span class="ord">${e.kind === 'point' ? '●' : e.kind === 'sub' ? '↔' : e.kind === 'setend' ? '■' : i + 1}</span><span class="desc">${VS.describe(e, roster)}${e.ignored ? ' <b style="color:#f87171" title="Le joueur sortant n’est pas sur le terrain (ou l’entrant y est déjà) : ce remplacement est ignoré. Corrigez-le ou supprimez-le.">⚠ incohérent, ignoré</b>' : ''}</span><span class="score-small">${e.us}–${e.them}</span><button class="edit" data-editbtn="${e.id}" title="Corriger cette action">✎</button></div>`).join('')}</div>`).join('');
+      ${g.list.map((e, i) => `<div class="jgap" data-insert="${e.id}" title="Ajouter une action ici"><i></i><svg viewBox="0 0 16 16" aria-hidden="true"><circle cx="8" cy="8" r="8" fill="var(--accent)"/><path d="M8 3.5v9M3.5 8h9" stroke="#111827" stroke-width="2" stroke-linecap="round"/></svg><i></i></div><div class="jrow ${e.winner ? 'point' : ''} ${flashId === e.id ? 'flash' : ''}" data-edit="${e.id}" title="Cliquez sur le crayon pour corriger"><span class="ord">${e.kind === 'point' ? '●' : e.kind === 'sub' ? '↔' : e.kind === 'setend' ? '■' : i + 1}</span><span class="desc">${VS.describe(e, roster)}${e.ignored ? ' <b style="color:#f87171" title="Le joueur sortant n’est pas sur le terrain (ou l’entrant y est déjà) : ce remplacement est ignoré. Corrigez-le ou supprimez-le.">⚠ incohérent, ignoré</b>' : ''}</span><span class="score-small">${e.us}–${e.them}</span><button class="edit" data-editbtn="${e.id}" title="Corriger cette action">✎</button></div>`).join('')}</div>`).join('');
     const y = $('journal').scrollTop;
     $('journal').innerHTML = list || '<div class="empty-note">Aucune saisie pour ce match.</div>';
     $('journal').scrollTop = keepLogScroll ? y : 0; // après une correction, on reste au même endroit du journal
@@ -379,27 +361,42 @@
       <tr><td><b class="tag-them">${VS.esc(m.opp)}</b></td><td>${OT.srvTot} · ${OT.ace} ace · ${OT.srvErr} f.</td><td>${OT.recTot} · ${VS.pct(OT.recPosPct)}</td><td>–</td><td>${OT.attTot} · ${OT.kill} pts · ${VS.pct(OT.attEff)}</td><td>${OT.blkPts}</td><td>${OT.relanceTot} · ${VS.pct(OT.relancePosPct)}</td><td><b>${OT.pts}</b></td></tr></tbody></table>`;
   }
   function refresh() {
-    R = VS.replay(m);
-    const idx = insertBefore ? m.events.findIndex((e) => e.id === insertBefore) : -1;
-    if (insertBefore && idx < 0) { insertBefore = null; inserted = []; }
-    // En insertion, score, rotation et pré-sélection sont ceux du point d’insertion.
-    RI = idx >= 0 ? VS.replay(Object.assign({}, m, { events: m.events.slice(0, idx) })) : R;
-    st = RI.state; selected = autoSel();
-    renderBoard(); renderMatrix(); renderSelection(); renderRally(); renderLog(); renderQuick(); renderInsertBar();
-    if (!insertBefore && st.needsConfig && !st.over && !configOpen) askSetConfig();
+    R = VS.replay(m); RI = R; st = R.state; selected = autoSel();
+    renderBoard(); renderMatrix(); renderSelection(); renderRally(); renderLog(); renderQuick();
+    if (st.needsConfig && !st.over && !configOpen) askSetConfig();
+  }
+  /* Ce que la pré-sélection proposerait juste avant l’action « beforeId » (passeur après une défense, attaquant après une passe…). */
+  function suggestAt(beforeId) {
+    const idx = m.events.findIndex((e) => e.id === beforeId);
+    const part = VS.replay(Object.assign({}, m, { events: m.events.slice(0, idx < 0 ? m.events.length : idx) }));
+    const keepR = RI, keepSt = st;
+    RI = part; st = part.state;
+    let keys = []; try { keys = Object.keys(cueMap()); } finally { RI = keepR; st = keepSt; }
+    const [p, s] = (keys[0] || '').split(':');
+    return { player: p ? +p : part.state.lineup[0], skill: s || 'A', state: part.state, prev: part.events.filter((e) => !e.ignored).pop() };
   }
 
   /* ---------- Correction d'une action ---------- */
-  function openEdit(id) {
-    const ix = m.events.findIndex((e) => e.id === id), ev = m.events[ix]; if (!ev) return;
+  function openEdit(id, insertBefore) {
+    let ix = m.events.findIndex((e) => e.id === id), ev = m.events[ix], sug = null;
+    if (insertBefore) { // ajout d’UNE action à cet endroit du match, pré-remplie comme la saisie normale
+      sug = suggestAt(insertBefore); ix = -1;
+      ev = { id: VS.uid(), kind: 'action', team: 'us', player: sug.player, skill: sug.skill, grade: sug.skill === 'E' ? null : '!' };
+    }
+    if (!ev) return;
     const rosterOpts = (n) => roster.map((p) => `<option value="${p.num}" ${p.num === n ? 'selected' : ''}>#${p.num} ${VS.esc(p.name)} (${p.pos})</option>`).join('');
     const skillOpts = ACTIONS.filter(([s]) => s !== 'F').map(([s,l]) => `<option value="${s}" ${s === ev.skill ? 'selected' : ''}>${l}</option>`).join('');
     let body = '';
+    if (insertBefore) {
+      body = `<label class="muted small" style="grid-column:1/-1">Type<select id="edType"><option value="us">Action de notre équipe</option><option value="them">Action adverse</option><option value="point">Point non détaillé</option></select></label>
+        <label class="muted small" data-type="them" style="grid-column:1/-1" hidden>Action adverse<select id="edOpp">${VS.OPP_ACTIONS.map((o) => `<option value="${o.id}">${VS.esc(o.label)}</option>`).join('')}</select></label>
+        <label class="muted small" data-type="point" style="grid-column:1/-1" hidden>Point attribué à<select id="edWinner"><option value="us">Nous</option><option value="them">${VS.esc(m.opp)}</option></select></label>`;
+    }
     if ((ev.kind || 'action') === 'action' && VS.teamOf(ev) === 'us') {
-      body = `<label class="muted small">Joueur<select id="edPlayer">${rosterOpts(ev.player)}</select></label>
-        <label class="muted small">Action<select id="edSkill">${skillOpts}<option value="F" ${ev.skill === 'F' ? 'selected' : ''}>Faute diverse</option></select></label>
-        <label class="muted small" id="edQualityWrap">Qualité<select id="edGrade">${VS.GRADE_ORDER.map((g) => `<option value="${g}" ${g === ev.grade ? 'selected' : ''}>${g} · ${VS.esc(VS.hint(ev.skill, g) || VS.GRADES[g].label)}</option>`).join('')}</select></label>
-        <label class="muted small" id="edZoneWrap">Cible de passe<select id="edZone">${VS.TARGET_ORDER.map((z) => `<option value="${z}" ${z === ev.target && ev.grade !== '=' ? 'selected' : ''}>Zone ${z} · ${VS.TARGETS[z]}</option>`).join('')}<option value="fault" ${ev.skill === 'E' && ev.grade === '=' ? 'selected' : ''}>= Faute de passe</option></select></label>`;
+      body += `<label class="muted small" data-type="us">Joueur<select id="edPlayer">${rosterOpts(ev.player)}</select></label>
+        <label class="muted small" data-type="us">Action<select id="edSkill">${skillOpts}<option value="F" ${ev.skill === 'F' ? 'selected' : ''}>Faute diverse</option></select></label>
+        <label class="muted small" data-type="us" id="edQualityWrap">Qualité<select id="edGrade">${VS.GRADE_ORDER.map((g) => `<option value="${g}" ${g === ev.grade ? 'selected' : ''}>${g} · ${VS.esc(VS.hint(ev.skill, g) || VS.GRADES[g].label)}</option>`).join('')}</select></label>
+        <label class="muted small" data-type="us" id="edZoneWrap">Cible de passe<select id="edZone">${VS.TARGET_ORDER.map((z) => `<option value="${z}" ${z === ev.target && ev.grade !== '=' ? 'selected' : ''}>Zone ${z} · ${VS.TARGETS[z]}</option>`).join('')}<option value="fault" ${ev.skill === 'E' && ev.grade === '=' ? 'selected' : ''}>= Faute de passe</option></select></label>`;
     } else if ((ev.kind || 'action') === 'action' && VS.teamOf(ev) === 'them') {
       body = `<label class="muted small" style="grid-column:1/-1">Action adverse<select id="edOpp">${VS.OPP_ACTIONS.map((o) => `<option value="${o.id}" ${o.skill === ev.skill && o.grade === ev.grade ? 'selected' : ''}>${VS.esc(o.label)}</option>`).join('')}</select></label>`;
     } else if (ev.kind === 'point') {
@@ -407,11 +404,17 @@
     } else if (ev.kind === 'sub') {
       body = `<label class="muted small">Sort<select id="edOut">${rosterOpts(ev.out)}</select></label><label class="muted small">Entre<select id="edIn">${rosterOpts(ev.in)}</select></label>`;
     } else body = `<p class="muted" style="grid-column:1/-1">${VS.esc(VS.describeText(ev))}. Cette entrée système peut être supprimée ou remplacée par une action.</p>`;
-    const modal = VS.modal('Corriger une saisie', `<p class="muted small">La correction peut modifier le score et les rotations des échanges suivants.</p><div class="modal-form">${body}</div>`, [
-      { label: 'Supprimer', cls: 'danger', onClick: () => { keepLogScroll = true; m.events.splice(ix, 1); redoStack = []; VS.saveMatch(m); refresh(); VS.toast('Saisie supprimée.'); } },
+    const where = sug ? `Set ${sug.state.set} · ${sug.state.us}–${sug.state.them} · ${sug.prev ? `après « ${VS.esc(VS.describeText(sug.prev, roster))} »` : 'au début du match'}` : '';
+    const intro = insertBefore ? `<p class="muted small">${where}</p>` : '<p class="muted small">La correction peut modifier le score et les rotations des échanges suivants.</p>';
+    const modal = VS.modal(insertBefore ? 'Ajouter une action' : 'Corriger une saisie', `${intro}<div class="modal-form">${body}</div>`, [
+      ...(insertBefore ? [] : [{ label: 'Supprimer', cls: 'danger', onClick: () => { keepLogScroll = true; m.events.splice(ix, 1); redoStack = []; VS.saveMatch(m); refresh(); VS.toast('Saisie supprimée.'); } }]),
       { label: 'Annuler', cls: 'ghost' },
-      { label: 'Enregistrer', cls: 'primary', onClick: (w) => {
-        const updated = Object.assign({}, ev);
+      { label: insertBefore ? 'Ajouter' : 'Enregistrer', cls: 'primary', onClick: (w) => {
+        let updated = Object.assign({}, ev);
+        const type = w.querySelector('#edType') ? w.querySelector('#edType').value : null;
+        if (type === 'point') updated = { id: ev.id, kind: 'point', winner: w.querySelector('#edWinner').value };
+        else if (type === 'them') { const o = VS.OPP_ACTIONS.find((x) => x.id === w.querySelector('#edOpp').value); updated = { id: ev.id, kind: 'action', team: 'them', player: null, skill: o.skill, grade: o.grade }; }
+        else {
         if (w.querySelector('#edPlayer')) updated.player = +w.querySelector('#edPlayer').value;
         if (w.querySelector('#edSkill')) {
           updated.skill = w.querySelector('#edSkill').value;
@@ -421,9 +424,16 @@
           else { updated.grade = w.querySelector('#edGrade').value; delete updated.target; }
           updated.kind = 'action'; updated.team = 'us';
         }
-        if (w.querySelector('#edOpp')) { const o = VS.OPP_ACTIONS.find((x) => x.id === w.querySelector('#edOpp').value); updated.skill = o.skill; updated.grade = o.grade; updated.team = 'them'; updated.player = null; }
+        if (!type && w.querySelector('#edOpp')) { const o = VS.OPP_ACTIONS.find((x) => x.id === w.querySelector('#edOpp').value); updated.skill = o.skill; updated.grade = o.grade; updated.team = 'them'; updated.player = null; }
         if (w.querySelector('#edOut')) { updated.out = +w.querySelector('#edOut').value; updated.in = +w.querySelector('#edIn').value; if (updated.out === updated.in) { VS.toast('Le joueur qui sort et celui qui entre doivent être différents.', 'error'); return false; } }
         if (w.querySelector('#edWinner')) updated.winner = w.querySelector('#edWinner').value;
+        }
+        if (insertBefore) {
+          const at = m.events.findIndex((e) => e.id === insertBefore);
+          m.events.splice(at < 0 ? m.events.length : at, 0, updated); added.push(updated.id); flashId = updated.id;
+          redoStack = []; keepLogScroll = true; VS.saveMatch(m); refresh(); VS.toast('Action ajoutée.');
+          return;
+        }
         m.events[ix] = updated; redoStack = []; keepLogScroll = true; VS.saveMatch(m); refresh(); VS.toast('Saisie corrigée.');
       } },
     ]);
@@ -441,6 +451,11 @@
     }
     syncGrades();
     if (modal.el.querySelector('#edZoneWrap')) modal.el.querySelector('#edZoneWrap').hidden = ev.skill !== 'E';
+    const type = modal.el.querySelector('#edType');
+    if (type) type.addEventListener('change', () => {
+      modal.el.querySelectorAll('[data-type]').forEach((x) => { x.hidden = x.dataset.type !== type.value; });
+      if (type.value === 'us') { const sv = skill.value; modal.el.querySelector('#edQualityWrap').hidden = sv === 'E' || sv === 'F'; modal.el.querySelector('#edZoneWrap').hidden = sv !== 'E'; }
+    });
   }
   function askSetConfig() {
     configOpen = true; const def = st.cfg;
@@ -475,7 +490,6 @@
     if (mod && !e.altKey && k === 'z' && !e.shiftKey) { e.preventDefault(); undo(); }
     else if (mod && !e.altKey && (k === 'y' || (k === 'z' && e.shiftKey))) { e.preventDefault(); redo(); }
     else if (k === 'escape' && selected) { selected = null; renderSelection(); }
-    else if (k === 'escape' && insertBefore) endInsert();
   });
   $('btnEndSet').onclick = () => { if (!locked() && confirm(`Terminer le set ${st.set} à ${st.us}–${st.them} ?`)) appendEvent({ id: VS.uid(), kind: 'setend' }); };
   $('btnSub').onclick = () => {
@@ -512,16 +526,9 @@
   $('clearSel').addEventListener('click', () => { selected = null; renderSelection(); });
   $('journal').addEventListener('dblclick', (e) => { const row = e.target.closest('[data-edit]'); if (row) openEdit(row.dataset.edit); });
   $('journal').addEventListener('click', (e) => {
-    const gap = e.target.closest('[data-insert]'); if (gap) { startInsert(gap.dataset.insert); return; }
+    const gap = e.target.closest('[data-insert]'); if (gap) { openEdit(null, gap.dataset.insert); return; }
     const b = e.target.closest('[data-editbtn]'); if (b) openEdit(b.dataset.editbtn);
   });
-  {
-    const bar = document.createElement('div');
-    bar.id = 'insBar'; bar.className = 'ins-bar'; bar.hidden = true;
-    bar.innerHTML = '<span class="t"></span><button class="vs-btn sm" id="insDone" title="Revenir à la saisie en fin de match (Échap)">Terminer</button>';
-    $('journal').before(bar);
-    $('insDone').onclick = endInsert;
-  }
   $('rallyBox').addEventListener('click', (e) => { const b = e.target.closest('[data-editbtn]'); if (b) openEdit(b.dataset.editbtn); });
   document.querySelectorAll('.journal-panel .tab').forEach((b) => b.addEventListener('click', () => {
     tab = b.dataset.tab; document.querySelectorAll('.journal-panel .tab').forEach((x) => x.classList.toggle('active', x === b));
