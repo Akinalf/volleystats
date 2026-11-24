@@ -35,7 +35,7 @@
   const gradesFor = (skill) => (skill === 'V' ? FREE_GRADES : GRADE_ORDER);
   /* Ce que chaque qualité implique pour l'adversaire (info-bulles). */
   const OPP_HINTS = {
-    S: { '#': 'Ace subi par l\'adversaire → point pour nous', '+': 'Récep. adverse en difficulté', '!': 'Récep. adverse moyenne : dans les 3 m, pas de 1re tempo', '-': 'Récep. adverse bonne (parfaite ou positive)', '/': 'Récep. adverse mauvaise, relance pour notre équipe', '=': 'Point pour l\'adversaire' },
+    S: { '#': 'Ace subi par l\'adversaire → point pour nous', '+': 'Récep. adverse en difficulté : pas de 1re tempo ou pire', '!': 'Récep. adverse bonne : le passeur bouge un peu', '-': 'Récep. adverse parfaite', '/': 'Récep. adverse mauvaise, relance pour notre équipe', '=': 'Point pour l\'adversaire' },
     R: { '#': 'Service adverse facile', '+': 'Service adverse facile', '!': 'Service adverse moyen', '-': 'Service adverse bon', '/': 'Service adverse : retour direct', '=': 'Ace adverse → point pour l\'adversaire' },
     A: { '#': 'Défense adverse ratée → point pour nous', '+': 'Défense adverse négative', '!': 'Revient du contre adverse, on reprend la balle', '-': 'Défense adverse positive', '/': 'Point de contre adverse', '=': 'Point pour l\'adversaire' },
     B: { '#': 'Attaque adverse contrée → point pour nous', '+': 'Attaque adverse facile pour nous', '!': 'Attaque adverse couverte (elle reprend la balle)', '-': 'Attaque adverse positive', '/': 'Attaque adverse gagnante : touchée par notre contre puis out ou tombée chez nous', '=': 'Point pour l\'adversaire' },
@@ -309,7 +309,7 @@
 
   /* Actions adverses déduites de nos actions (+ actions adverses saisies) */
   const OPP_SERVE = { '#': '-', '+': '-', '!': '!', '-': '+', '/': '/', '=': '#' };     // ← notre réception
-  const OPP_REC = { '#': '=', '+': '-', '!': '!', '-': '+', '/': '/' };                // ← notre service
+  const OPP_REC = { '#': '=', '+': '-', '!': '+', '-': '#', '/': '/' };                // ← notre service (pas de réception moyenne adverse)
   const OPP_ATT_B = { '#': '/', '+': '-', '!': '!', '-': '+', '/': '#' };               // ← notre contre
   const OPP_ATT_D = { '#': '-', '+': '-', '!': '!', '-': '+', '/': '+', '=': '#' };     // ← notre défense
   function deriveOpp(events) {
