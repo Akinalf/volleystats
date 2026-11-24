@@ -9,3 +9,6 @@ desktop.ini
 # Exports de matchs (données personnelles)
 match-*.json
 match-*.csv
+
+# Copies de travail des agents
+.claude/worktrees/
