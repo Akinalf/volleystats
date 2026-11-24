@@ -220,7 +220,9 @@ table.vs-table{width:100%;border-collapse:collapse;font-size:13px}
   .dash .panel-h .fld-setter{width:100%}
   /* Barre des sections collante */
   .dash .dash-nav:not([hidden]){display:flex;position:sticky;top:0;z-index:45;background:rgba(11,18,32,.96);backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px);padding:8px 16px;border-bottom:1px solid var(--line)}
+  .dash .dash-nav:not([hidden]){gap:8px;align-items:center}.dash .dash-nav .chips{flex:1;min-width:0}
   .dash .dash-nav .chip{min-height:36px}
+  .dash .nav-set{flex:none;min-height:36px;max-width:92px;padding:0 8px;border-radius:999px;border:1px solid var(--accent);background:var(--panel2);color:var(--text);font:inherit;font-size:14px;font-weight:600}
   .dash #wrap>.panel,.dash #wrap>.sect,.dash #wrap>.grid2,.dash #s-graph>.panel{scroll-margin-top:60px}
   .dash .wrap{padding:10px 12px 40px;gap:12px}
   .dash .grid2{gap:12px}

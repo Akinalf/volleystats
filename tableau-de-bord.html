@@ -52,8 +52,9 @@
     <button class="vs-btn sm desk-only" onclick="window.print()">Imprimer / PDF</button>
   </div>
 </div>
-<nav class="dash-nav chips" id="dashNav" aria-label="Sections du tableau de bord">
-  <a class="chip" href="#s-resume">Résumé</a><a class="chip" href="#s-qualite">Qualité</a><a class="chip" href="#s-joueurs">Joueurs</a><a class="chip" href="#s-cmp">Comparatif</a><a class="chip" href="#s-passe">Passeur</a><a class="chip" href="#s-graph">Graphiques</a><a class="chip" href="#s-rot">Rotations</a>
+<nav class="dash-nav" id="dashNav" aria-label="Sections du tableau de bord">
+  <select class="nav-set" id="fSetNav" aria-label="Set affiché"></select>
+  <div class="chips"><a class="chip" href="#s-resume">Résumé</a><a class="chip" href="#s-qualite">Qualité</a><a class="chip" href="#s-joueurs">Joueurs</a><a class="chip" href="#s-cmp">Comparatif</a><a class="chip" href="#s-passe">Passeur</a><a class="chip" href="#s-graph">Graphiques</a><a class="chip" href="#s-rot">Rotations</a></div>
 </nav>
 <div class="wrap" id="emptyWrap" hidden><div class="panel empty-note">Aucun match pour l’instant. <span class="admin-only"><a href="index.html">Créez un match</a> ou un match d’exemple.</span><span class="ro-only">Les matchs apparaîtront ici dès qu’ils auront été saisis.</span></div></div>
 <div class="wrap" id="wrap">
@@ -137,6 +138,7 @@
   function render() {
     if (!m) return;
     const fs = $('fSet').value;
+    $('fSetNav').innerHTML = $('fSet').innerHTML; $('fSetNav').value = fs; // copie collante du choix du set (mobile)
     events = fs === 'all' ? allEv : allEv.filter((e) => e.set === +fs);
     const S = VS.computeStats(events, 'us');
     const oppEv = VS.deriveOpp(events);
@@ -363,6 +365,7 @@
 
   $('btnCsv').onclick = () => { if (m) VS.exportCSV(m, allEv); };
   $('fSet').addEventListener('change', render);
+  $('fSetNav').addEventListener('change', () => { $('fSet').value = $('fSetNav').value; render(); });
   $('setterSel').addEventListener('change', renderDist);
   // Changement de match sur place (sans rechargement) : l’URL garde le match choisi.
   $('matchSel').addEventListener('change', () => {
