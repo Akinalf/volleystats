@@ -181,7 +181,9 @@
     } else if (VS.teamOf(last) === 'us' && ['R', 'D', 'X'].includes(last.skill) && last.grade !== '=' && last.grade !== '/') {
       cue(st.lineup.find((n) => VS.player(n, roster).pos === 'P'), 'E', 'cue-set');
     } else if (VS.teamOf(last) === 'us' && last.skill === 'E' && last.target) {
-      const want = { 4: ['R4', true], 3: ['C', true], 2: ['PT', true], 6: ['R4', false], 5: ['R4', false], 1: ['PT', false] }[last.target];
+      let want = { 4: ['R4', true], 3: ['C', true], 2: ['PT', true], 6: ['R4', false], 5: ['R4', false], 1: ['PT', false] }[last.target];
+      // Passeur en P1 et en réception : fausse pointe, le pointu attaque en 4 et le R4 en 2.
+      if (st.setterPos === 1 && !st.weServe) { if (last.target === 4) want = ['PT', true]; else if (last.target === 2) want = ['R4', true]; }
       if (want) {
         const front = (i) => [1, 2, 3].includes(i);
         const find = (pos, isFront) => st.lineup.filter((n, i) => VS.player(n, roster).pos === pos && front(i) === isFront);
