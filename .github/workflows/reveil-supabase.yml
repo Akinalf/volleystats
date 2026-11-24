@@ -1,0 +1,38 @@
+# Réveil Supabase : un projet gratuit est mis en pause après 7 jours sans activité.
+# - Tous les 3 jours : une simple lecture de la liste des matchs (clé publique de lecture, rien n'est modifié).
+# - Le 1er de chaque mois : un petit commit (.github/derniere-activite.txt), car GitHub désactive
+#   les tâches planifiées d'un dépôt public après 60 jours sans commit.
+name: Réveil Supabase
+
+on:
+  schedule:
+    - cron: '17 6 */3 * *'
+    - cron: '23 6 1 * *'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  reveil:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Lecture de la base (garde le projet actif)
+        run: |
+          URL=$(grep -o "https://[a-z0-9]*\.supabase\.co" assets/config.js)
+          KEY=$(grep -o "sb_publishable_[A-Za-z0-9_-]*" assets/config.js)
+          code=$(curl -s -o /dev/null -w "%{http_code}" "$URL/rest/v1/matches?select=id&limit=1" -H "apikey: $KEY" -H "Authorization: Bearer $KEY")
+          echo "Réponse Supabase : $code"
+          test "$code" = "200"
+
+      - name: Commit mensuel (garde la tâche planifiée active)
+        if: github.event.schedule == '23 6 1 * *' || github.event_name == 'workflow_dispatch'
+        run: |
+          date -u +"%Y-%m-%d %H:%M UTC" > .github/derniere-activite.txt
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add .github/derniere-activite.txt
+          git commit -m "Réveil mensuel automatique" || exit 0
+          git push
