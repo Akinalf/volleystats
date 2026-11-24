@@ -131,6 +131,7 @@
   let R, st, view = VS.load('playerView', 'rotation'), tab = 'log', configOpen = false, flashId = null;
   let selected = null; // {player,skill}
   let redoStack = [];  // saisies annulées, rétablies avec Ctrl+Y
+  let keepLogScroll = false; // garder la position du journal au prochain rendu (correction ✎)
 
   const ACTIONS = [
     ['S', 'Service', 'S'], ['R', 'Récep.', 'R'], ['E', 'Passe', 'P'],
@@ -325,8 +326,10 @@
     const groups = groupEvents().slice().reverse();
     const list = groups.map((g) => `<div class="journal-group"><div class="jg-head"><span>Set ${g.set} · Échange ${g.rally}${g.winner ? ` · point ${g.winner === 'us' ? 'Nous' : VS.esc(m.opp)}` : ' · en cours'}</span><span>${g.us}–${g.them}</span></div>
       ${g.list.map((e, i) => `<div class="jrow ${e.winner ? 'point' : ''} ${flashId === e.id ? 'flash' : ''}" data-edit="${e.id}" title="Cliquez sur le crayon pour corriger"><span class="ord">${e.kind === 'point' ? '●' : e.kind === 'sub' ? '↔' : e.kind === 'setend' ? '■' : i + 1}</span><span class="desc">${VS.describe(e, roster)}${e.ignored ? ' <b style="color:#f87171" title="Le joueur sortant n’est pas sur le terrain (ou l’entrant y est déjà) : ce remplacement est ignoré. Corrigez-le ou supprimez-le.">⚠ incohérent, ignoré</b>' : ''}</span><span class="score-small">${e.us}–${e.them}</span><button class="edit" data-editbtn="${e.id}" title="Corriger cette action">✎</button></div>`).join('')}</div>`).join('');
+    const y = $('journal').scrollTop;
     $('journal').innerHTML = list || '<div class="empty-note">Aucune saisie pour ce match.</div>';
-    $('journal').scrollTop = 0;
+    $('journal').scrollTop = keepLogScroll ? y : 0; // après une correction, on reste au même endroit du journal
+    keepLogScroll = false;
   }
   function renderQuick() {
     if (tab !== 'quick') return;
@@ -358,7 +361,7 @@
       body = `<label class="muted small">Sort<select id="edOut">${rosterOpts(ev.out)}</select></label><label class="muted small">Entre<select id="edIn">${rosterOpts(ev.in)}</select></label>`;
     } else body = `<p class="muted" style="grid-column:1/-1">${VS.esc(VS.describeText(ev))}. Cette entrée système peut être supprimée ou remplacée par une action.</p>`;
     const modal = VS.modal('Corriger une saisie', `<p class="muted small">La correction peut modifier le score et les rotations des échanges suivants.</p><div class="modal-form">${body}</div>`, [
-      { label: 'Supprimer', cls: 'danger', onClick: () => { m.events.splice(ix, 1); redoStack = []; VS.saveMatch(m); refresh(); VS.toast('Saisie supprimée.'); } },
+      { label: 'Supprimer', cls: 'danger', onClick: () => { keepLogScroll = true; m.events.splice(ix, 1); redoStack = []; VS.saveMatch(m); refresh(); VS.toast('Saisie supprimée.'); } },
       { label: 'Annuler', cls: 'ghost' },
       { label: 'Enregistrer', cls: 'primary', onClick: (w) => {
         const updated = Object.assign({}, ev);
@@ -374,7 +377,7 @@
         if (w.querySelector('#edOpp')) { const o = VS.OPP_ACTIONS.find((x) => x.id === w.querySelector('#edOpp').value); updated.skill = o.skill; updated.grade = o.grade; updated.team = 'them'; updated.player = null; }
         if (w.querySelector('#edOut')) { updated.out = +w.querySelector('#edOut').value; updated.in = +w.querySelector('#edIn').value; if (updated.out === updated.in) { VS.toast('Le joueur qui sort et celui qui entre doivent être différents.', 'error'); return false; } }
         if (w.querySelector('#edWinner')) updated.winner = w.querySelector('#edWinner').value;
-        m.events[ix] = updated; redoStack = []; VS.saveMatch(m); refresh(); VS.toast('Saisie corrigée.');
+        m.events[ix] = updated; redoStack = []; keepLogScroll = true; VS.saveMatch(m); refresh(); VS.toast('Saisie corrigée.');
       } },
     ]);
     if ((ev.skill === 'E' || ev.skill === 'F') && modal.el.querySelector('#edSkill')) modal.el.querySelector('#edQualityWrap').hidden = true;
