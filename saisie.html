@@ -63,6 +63,77 @@
   @media(max-width:1250px){.work{grid-template-columns:minmax(500px,1.15fr) minmax(210px,.5fr) minmax(330px,.9fr);gap:6px;padding-left:8px;padding-right:8px}.matrix{grid-template-columns:minmax(108px,1.2fr) repeat(9,minmax(34px,.55fr))}.who{font-size:11px}.oppbar{margin-left:8px;margin-right:8px}}
   @media(max-width:1050px){html,body{height:auto;min-height:100%;overflow:auto}body{display:block}.work{grid-template-columns:1fr 1fr}.players-panel{grid-column:1/-1;min-height:420px}.select-panel{min-height:430px}.rally-panel{min-height:430px}.oppbar{flex-wrap:wrap}.oppbuttons{grid-template-columns:repeat(3,1fr);flex-basis:100%}.board{margin:8px;flex-wrap:wrap}.board-mid{order:3;flex-basis:100%}}
   @media(max-height:700px) and (min-width:1051px){.matrix{grid-auto-rows:minmax(22px,1fr)}.quality-grid{grid-template-rows:repeat(2,minmax(42px,1fr));min-height:86px}.zone-grid{grid-template-rows:repeat(2,minmax(34px,1fr));min-height:72px}.rallybox{min-height:80px}.work{padding-top:5px;padding-bottom:5px}.players-panel,.select-panel,.rally-panel{padding:6px;gap:4px}.board{min-height:51px;padding:4px 10px}.oppbar{padding:4px 7px;margin-bottom:5px}}
+
+  /* ---------- Téléphone : saisie par étapes (joueur → action → qualité/zone), journal en tiroir ---------- */
+  .mflow,.m-only{display:none}
+  @media(max-width:760px){
+    html,body{height:auto;overflow:visible;min-height:100%}
+    body{display:flex;flex-direction:column;min-height:100vh;-webkit-text-size-adjust:100%;padding-bottom:56px}
+    .vs-header{position:static}
+    .m-only{display:inline-flex}
+    .work{display:contents}
+    .players-panel,.selStatusWrap,#selStatus,.select-panel>.muted.small,.select-panel .spacer,.zone-net{display:none!important}
+    .board{order:1;position:sticky;top:0;z-index:40;margin:0;border-radius:0;border-width:0 0 1px;padding:6px 10px;gap:4px 8px;flex-wrap:wrap;min-height:0;background:rgba(17,26,46,.97)}
+    .score{flex:1;justify-content:center;gap:6px}.score-team .pts{font-size:28px}.score-team .name{max-width:92px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:13px}
+    .board-mid{order:2;flex-basis:100%;font-size:11.5px;line-height:1.3}.board-mid b{font-size:12.5px}
+    .board-actions{order:3;flex-basis:100%;overflow-x:auto;scrollbar-width:none;-webkit-overflow-scrolling:touch;padding-bottom:1px}
+    .board-actions::-webkit-scrollbar{display:none}
+    .board-actions .vs-btn{flex:none;min-height:38px;padding:0 11px;font-size:13px}
+    #btnUndo{order:-2}#btnJournal{order:-1}
+    .select-panel{order:2;padding:10px 10px 4px;gap:8px}
+    .oppbar{order:3;margin:4px 10px 8px;flex-wrap:wrap;padding:8px}
+    .oppbar h3{flex-basis:100%;font-size:12px}
+    .oppbuttons{grid-template-columns:repeat(3,minmax(0,1fr));flex-basis:100%;gap:6px}
+    .oppbuttons .vs-btn{min-height:46px;font-size:12px}
+    .rally-panel{order:4;padding:0 10px 12px}
+    .rallybox{max-height:none;min-height:0}
+    .eventline{grid-template-columns:22px 1fr 34px 46px;font-size:12.5px;padding:4px 3px}.eventline .edit{font-size:16px;padding:4px}
+    .mflow{display:flex;flex-direction:column;gap:8px}
+    .m-head{display:flex;align-items:center;gap:8px;min-height:40px}
+    .m-head .m-title{flex:1;min-width:0;font-weight:700;font-size:15px;line-height:1.2}
+    .m-head .m-title small{display:block;font-weight:400;font-size:11.5px;color:var(--muted)}
+    .m-head .vs-btn{flex:none;min-height:40px;padding:0 12px;font-size:13px}
+    .m-net{text-align:center;font-size:10px;letter-spacing:.12em;color:var(--muted);border-bottom:2px solid #536684;padding-bottom:3px}
+    .m-court{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:6px}
+    .m-pl{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1px;min-height:66px;padding:5px 3px;border:1px solid var(--line);border-radius:10px;background:var(--panel2);color:var(--text);cursor:pointer;font:inherit;line-height:1.1;min-width:0}
+    .m-pl b{font:700 20px Consolas,monospace}.m-pl .nm{font-size:12px;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.m-pl .ps{font:10px Consolas,monospace;color:#9fb3d1}
+    .m-pl.cue{border-color:var(--accent);box-shadow:inset 0 0 0 2px var(--accent);background:#3a3110}
+    .m-pl.sm{min-height:48px;flex-direction:row;gap:6px}.m-pl.sm b{font-size:15px}
+    .m-bench{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:6px}
+    .m-lbl{font-size:11px;color:var(--muted);margin-top:2px}
+    .m-acts{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:6px}
+    .m-act{min-height:58px;border:1px solid var(--line);border-radius:10px;background:var(--panel2);color:var(--text);font:600 14px/1.15 inherit;cursor:pointer;padding:4px}
+    .m-act.cue{border-color:var(--accent);box-shadow:inset 0 0 0 2px var(--accent);background:#3a3110}
+    .m-act.fault{color:#fca5a5}
+    .mflow button:disabled{opacity:.45}
+    .select-panel[data-mstep="player"] .m-acts,.select-panel[data-mstep="action"] .m-players{display:none}
+    .select-panel[data-mstep="grade"] .m-acts,.select-panel[data-mstep="grade"] .m-players{display:none}
+    .select-panel:not([data-mstep="grade"]) #qualityBox,.select-panel:not([data-mstep="pass"]) #zoneBox{display:none}
+    .select-panel[data-mstep="pass"] .m-acts,.select-panel[data-mstep="pass"] .m-players{display:none}
+    .select-panel[data-mstep="pass"] #qualityBox{display:flex;order:3}
+    .select-panel,.rally-panel,.players-panel{min-height:0!important}
+    .quality-box,.zone-box{border:0!important;padding:0;background:none}
+    .q-title,.z-title{display:none}
+    .quality-grid{grid-template-rows:none;grid-auto-rows:minmax(70px,auto);gap:8px;min-height:0}
+    .quality-grid .q-btn{border-radius:10px}.q-btn b{font-size:24px}.q-btn span{font-size:12.5px;line-height:1.15}
+    .quality-grid .q-btn:disabled{display:none}
+    .select-panel[data-mstep="pass"] .quality-grid{grid-template-columns:1fr;grid-auto-rows:48px}
+    .zone-grid{grid-template-rows:none;grid-auto-rows:minmax(64px,auto);gap:8px;min-height:0}
+    .zone-grid .z-btn{border-radius:10px}.zone-grid .z-btn b{font-size:22px}.zone-grid .z-btn span{font-size:11px}
+    /* Journal : tiroir plein écran */
+    .journal-panel{display:none!important}
+    body.jopen{overflow:hidden}
+    body.jopen .journal-panel{display:flex!important;position:fixed;inset:0;z-index:90;background:var(--bg,#0b1220);padding:8px 10px 10px;border-radius:0}
+    .journal-panel .tabs{align-items:center}.journal-panel .tab{min-height:42px}
+    .jclose{margin-left:auto;min-height:40px}
+    .jrow{grid-template-columns:24px 1fr 46px 34px;font-size:13px;padding:6px 4px}.jrow .edit{font-size:17px;padding:4px}
+    .jg-head{font-size:11px;padding:5px}
+    .modal-form{grid-template-columns:1fr}
+    .vs-modal select,.vs-modal input:not([type=radio]):not([type=checkbox]){font-size:16px;min-height:42px}
+    .vs-modal-actions .vs-btn{min-height:42px}
+  }
+  /* Écran tactile : la ligne « + » d’insertion est toujours visible (pas de survol au doigt) */
+  @media(hover:none){.jgap{opacity:.55;height:20px;margin:0 2px}.jgap svg{width:20px;height:20px}.jgap i{height:1px;opacity:.6}}
 </style>
 </head>
 <body>
@@ -79,6 +150,7 @@
     <button class="vs-btn sm ghost" id="btnSub">Remplacement</button>
     <button class="vs-btn sm ghost" id="btnLineup" title="Corriger la composition de départ d'un set">Composition</button>
     <button class="vs-btn sm ghost" id="btnEndSet">Terminer le set</button>
+    <button class="vs-btn sm ghost m-only" id="btnJournal">Journal</button>
     <button class="vs-btn sm" id="btnUndo" title="Annuler la dernière saisie (Ctrl+Z)">Annuler</button>
     <button class="vs-btn sm ghost" id="btnRedo" title="Rétablir la saisie annulée (Ctrl+Y)" disabled>Rétablir</button>
   </div>
@@ -91,7 +163,8 @@
     <div class="matrix-legend">Cliquez une case joueur/action, puis une qualité — ou une zone pour une passe. Chaque action reste disponible sur chaque ligne.</div>
   </section>
 
-  <section class="select-panel">
+  <section class="select-panel" id="selPanel" data-mstep="player">
+    <div class="mflow" id="mflow"><div class="m-head" id="mHead"></div><div class="m-players" id="mPlayers"></div><div class="m-acts" id="mActs"></div></div>
     <div class="sel-status" id="selStatus"><span class="msg">Sélectionnez un joueur et une action dans la grille.</span><button class="vs-btn sm ghost" id="clearSel" disabled>Effacer</button></div>
     <div class="quality-box" id="qualityBox">
       <div class="q-title"><span>Qualité</span><button class="vs-btn sm ghost" id="helpGrades" title="Signification des qualités">?</button></div>
@@ -109,7 +182,7 @@
   <section class="rally-panel">
     <div class="panel rallybox" id="rallyBox"></div>
     <div class="panel journal-panel">
-      <div class="tabs"><button class="tab active" data-tab="log">Journal du match</button><button class="tab" data-tab="quick">Stats rapides</button></div>
+      <div class="tabs"><button class="tab active" data-tab="log">Journal du match</button><button class="tab" data-tab="quick">Stats rapides</button><button class="vs-btn sm jclose m-only" id="jClose">Fermer</button></div>
       <div class="journal" id="journal"></div>
       <div class="quick-wrap" id="quick" hidden></div>
     </div>
@@ -138,6 +211,7 @@
   let keepLogScroll = false; // garder la position du journal au prochain rendu (correction ✎)
   let RI = null;              // rejeu servant à la pré-sélection (le match entier, ou jusqu’à un point d’insertion)
   let added = [];             // ids ajoutés (en fin de match ou insérés), du plus ancien au plus récent : pour Annuler
+  let mPlayer = null;         // téléphone : joueur choisi, en attente de son action
 
   const ACTIONS = [
     ['S', 'Service', 'S'], ['R', 'Récep.', 'R'], ['E', 'Passe', 'P'],
@@ -244,11 +318,47 @@
     else if (selected.skill === 'E') el.querySelector('.msg').textContent = `${VS.pname(selected.player, roster)} · Passe : choisissez la zone cible, ou = pour une faute de passe.`;
     else el.querySelector('.msg').textContent = `${VS.pname(selected.player, roster)} · ${VS.SKILLS[selected.skill].label} : choisissez une qualité.`;
     document.querySelectorAll('#zones [data-zone]').forEach((b) => b.classList.toggle('selected', !!selected && selected.skill === 'E' && +b.dataset.zone === selected.zone));
-    renderMatrix();
+    renderMatrix(); renderFlow();
+  }
+  /* ---------- Téléphone : étapes joueur → action → qualité (ou zone pour une passe) ---------- */
+  function renderFlow() {
+    const step = selected ? (selected.skill === 'E' ? 'pass' : 'grade') : mPlayer != null ? 'action' : 'player';
+    $('selPanel').dataset.mstep = step;
+    const cues = cueMap(), dis = st.over ? 'disabled' : '';
+    const plBtn = (num, tag, small) => {
+      if (num == null) return '<span></span>';
+      const p = VS.player(num, roster), cue = Object.keys(cues).some((k) => k.startsWith(num + ':'));
+      return `<button class="m-pl ${small ? 'sm' : ''} ${cue ? 'cue' : ''}" data-mpl="${num}" ${dis}><span class="ps">${VS.esc(tag)}</span><b>${num}</b><span class="nm">${VS.esc(p.name)}</span></button>`;
+    };
+    let head = '';
+    if (st.over) head = '<div class="m-title">Match terminé<small>Voir le tableau de bord</small></div>';
+    else if (step === 'player') head = `<div class="m-title">Qui touche le ballon ?<small>${Object.keys(cues).length ? 'En jaune : la suggestion' : 'Touchez un joueur'}</small></div>`;
+    else if (step === 'action') head = `<button class="vs-btn ghost" data-mback>‹</button><div class="m-title">#${mPlayer} ${VS.esc(VS.player(mPlayer, roster).name)}<small>Quelle action ?</small></div>`;
+    else head = `<button class="vs-btn ghost" data-mback>‹</button><div class="m-title">#${selected.player} ${VS.esc(VS.player(selected.player, roster).name)} · ${VS.esc(VS.SKILLS[selected.skill].label)}<small>${step === 'pass' ? 'Zone visée par la passe' : 'Qualité'}</small></div>`;
+    $('mHead').innerHTML = head;
+    if (step === 'player') {
+      const L = st.lineup, tag = (i) => 'P' + (i + 1) + ' · ' + (VS.player(L[i], roster).pos || '');
+      const onCourt = new Set(L), lib = st.libero;
+      const bench = roster.filter((p) => !onCourt.has(p.num));
+      $('mPlayers').innerHTML = `<div class="m-net">FILET</div>
+        <div class="m-court">${[3, 2, 1, 4, 5, 0].map((i) => plBtn(L[i], tag(i))).join('')}</div>
+        ${bench.length ? `<div class="m-lbl">Libéro et banc</div><div class="m-bench">${bench.sort((a, b) => (b.num === lib) - (a.num === lib)).map((p) => plBtn(p.num, p.num === lib ? 'L' : p.pos, true)).join('')}</div>` : ''}`;
+    }
+    if (step === 'action') {
+      $('mActs').innerHTML = ACTIONS.map(([s]) => `<button class="m-act ${s === 'F' ? 'fault' : ''} ${cues[mPlayer + ':' + s] ? 'cue' : ''}" data-mact="${s}" ${dis}>${s === 'F' ? 'Faute diverse' : VS.esc(VS.SKILLS[s].label)}</button>`).join('');
+    }
+  }
+  function tapPlayer(num) {
+    if (locked()) return;
+    const ks = Object.keys(cueMap()).filter((k) => k.startsWith(num + ':'));
+    // Joueur suggéré : on passe directement à la qualité de l’action attendue (« ‹ » pour une autre action).
+    if (ks.length === 1) { selected = { player: num, skill: ks[0].split(':')[1] }; mPlayer = null; }
+    else { selected = null; mPlayer = num; }
+    renderSelection();
   }
   function appendEvent(ev) {
     if (locked()) return;
-    redoStack = []; m.events.push(ev); added.push(ev.id);
+    mPlayer = null; redoStack = []; m.events.push(ev); added.push(ev.id);
     flashId = ev.id; VS.saveMatch(m); refresh();
     const last = R.events[R.events.length - 1];
     if (last && last.setEnd) VS.toast(`Set ${last.set} ${last.us > last.them ? 'gagné' : 'perdu'} ${last.us}–${last.them}`, 'ok');
@@ -482,6 +592,14 @@
   $('oppButtons').addEventListener('click', (e) => { const b = e.target.closest('[data-opp]'); if (b) directOpp(b.dataset.opp); });
   $('board').addEventListener('click', (e) => { const b = e.target.closest('[data-pt]'); if (b) addPoint(b.dataset.pt); });
   $('clearSel').onclick = () => { selected = null; renderSelection(); };
+  $('mflow').addEventListener('click', (e) => {
+    const pl = e.target.closest('[data-mpl]'); if (pl) { tapPlayer(+pl.dataset.mpl); return; }
+    const a = e.target.closest('[data-mact]'); if (a && mPlayer != null) { const n = mPlayer; mPlayer = null; chooseCell(n, a.dataset.mact); if (!selected && a.dataset.mact !== 'F') { mPlayer = n; renderSelection(); } return; }
+    if (e.target.closest('[data-mback]')) { if (selected) { mPlayer = selected.player; selected = null; } else mPlayer = null; renderSelection(); return; }
+    if (e.target.closest('[data-mchange]')) { mPlayer = selected.player; selected = null; renderSelection(); }
+  });
+  $('btnJournal').onclick = () => { document.body.classList.add('jopen'); };
+  $('jClose').onclick = () => { document.body.classList.remove('jopen'); };
   $('btnUndo').onclick = undo;
   $('btnRedo').onclick = redo;
   /* Raccourcis : Ctrl+Z annuler, Ctrl+Y ou Ctrl+Maj+Z rétablir, Échap effacer la sélection.
