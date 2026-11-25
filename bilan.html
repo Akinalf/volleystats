@@ -1,0 +1,332 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Bilan du match — VolleyStats</title>
+<link rel="stylesheet" href="assets/app.css?v=20261125j">
+<link rel="icon" type="image/png" sizes="32x32" href="assets/icons/favicon-32.png?v=1">
+<link rel="icon" type="image/png" sizes="64x64" href="assets/icons/favicon-64.png?v=1">
+<link rel="apple-touch-icon" href="assets/icons/apple-touch-icon.png?v=1">
+<link rel="manifest" href="manifest.webmanifest">
+<meta name="theme-color" content="#0b1220">
+<style>
+  .bwrap{padding:8px 16px 40px;display:flex;flex-direction:column;gap:16px;max-width:1000px}
+  .b-head .res{font:700 28px Consolas,monospace;margin:2px 0 6px}
+  .b-head .res .us{color:#93c5fd}.b-head .res .them{color:#fca5a5}
+  .setchips{display:flex;gap:6px;flex-wrap:wrap}
+  .setchips span{font:13px Consolas,monospace;background:var(--panel2);border-radius:6px;padding:3px 8px}
+  .setchips .w{border-left:3px solid #3b82f6}.setchips .l{border-left:3px solid #ef4444}
+  .lead{font-size:15.5px;line-height:1.55;margin:0;max-width:75ch}
+  .pn{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:14px}
+  @media (max-width:760px){.pn{grid-template-columns:minmax(0,1fr)}}
+  .pn .panel h3{margin:0 0 4px;font-size:16px}
+  .pn .pos{border-color:rgba(34,197,94,.45);background:linear-gradient(rgba(34,197,94,.07),rgba(34,197,94,.07)),var(--panel)}
+  .pn .neg{border-color:rgba(239,68,68,.45);background:linear-gradient(rgba(239,68,68,.07),rgba(239,68,68,.07)),var(--panel)}
+  .pn .pos h3{color:#86efac}.pn .neg h3{color:#fca5a5}
+  .pn ul{margin:6px 0 4px;padding-left:1.1em;display:flex;flex-direction:column;gap:9px;line-height:1.5}
+  .pn li b{color:var(--text)}
+  .num{font-variant-numeric:tabular-nums;font-weight:600}
+  .b-sect h3{margin:0 0 8px}
+  .b-sect .vs-table td,.b-sect .vs-table th{white-space:nowrap}
+  td.g{color:#86efac;font-weight:600} td.b{color:#fca5a5;font-weight:600}
+  ol.prio{margin:4px 0 0;padding-left:1.4em;display:flex;flex-direction:column;gap:12px;max-width:78ch;line-height:1.5}
+  ol.prio li::marker{color:var(--accent);font-weight:700}
+  ol.prio span{display:block;color:var(--muted);font-size:13.5px}
+  .b-note{margin:0;max-width:80ch}
+</style>
+</head>
+<body class="dash">
+<div class="page-head">
+  <div class="ph-title">
+    <h1>Bilan du match</h1>
+    <p class="muted ph-desc">Résumé pour le coach : points positifs, points à travailler et priorités. Généré à partir des stats saisies.</p>
+  </div>
+  <div class="head-actions">
+    <label class="muted small fld fld-match"><span>Match</span> <select class="src" id="matchSel" style="background:var(--panel2);color:var(--text);border:1px solid var(--line);border-radius:7px;padding:6px;max-width:320px"></select></label>
+    <button class="vs-btn sm" id="btnCopy" type="button">Copier le texte</button>
+  </div>
+</div>
+<div class="bwrap" id="emptyWrap" hidden><div class="panel empty-note">Aucun match pour l’instant.</div></div>
+<div class="bwrap" id="wrap">
+  <section class="panel b-head" id="bHead"></section>
+  <div class="pn">
+    <div class="panel pos"><h3>Points positifs</h3><ul id="pos"></ul></div>
+    <div class="panel neg"><h3>Points à travailler</h3><ul id="neg"></ul></div>
+  </div>
+  <section class="panel b-sect"><h3>À travailler en priorité</h3><ol class="prio" id="prio"></ol></section>
+  <section class="panel b-sect"><h3>Set par set</h3><div class="table-wrap" id="tSets"></div></section>
+  <section class="panel b-sect"><h3>Attaque par joueur</h3><div class="table-wrap" id="tAtt"></div>
+    <p class="muted small" style="margin:8px 0 0">Efficacité = (points − fautes − contrées) ÷ attaques. Repères club : au-dessus de 30 %, très bon ; en dessous de 15 %, à travailler.</p></section>
+  <p class="muted small b-note" id="bNote"></p>
+</div>
+<script src="assets/core.js?v=20261125j"></script>
+<script src="assets/config.js?v=20261125j"></script>
+<script src="assets/auth.js?v=20261125j"></script>
+<script src="assets/sync.js?v=20261125j"></script>
+<script>
+(function () {
+  /* Page en LECTURE SEULE : le bilan est recalculé à chaque affichage à partir des actions du match. */
+  const $ = (id) => document.getElementById(id);
+  const esc = VS.esc, P = (v) => VS.pct(v);
+  let m = null;
+
+  function pickMatchId(prefer) {
+    if (prefer && VS.getMatch(prefer)) return prefer;
+    const q = new URLSearchParams(location.search).get('match');
+    if (q && VS.getMatch(q)) return q;
+    const c = VS.currentMatch();
+    if (c) return c.id;
+    const list = VS.listMatches();
+    return list.length ? list[0].id : null;
+  }
+
+  /** Comment chaque point a été marqué (même règle que le tableau de bord). */
+  function pointType(e) {
+    if (e.kind === 'point') return 'nd';
+    const own = VS.teamOf(e) === e.winner;
+    if (own) return e.skill === 'S' ? 'ace' : e.skill === 'B' ? 'bloc' : e.skill === 'A' ? 'att' : e.skill === 'V' ? 'free' : 'faute';
+    if (e.grade === '=' && e.skill === 'R') return 'ace';
+    if (e.skill === 'A' && e.grade === '/') return 'bloc';
+    if ((e.skill === 'D' && e.grade === '=') || (e.skill === 'B' && e.grade === '/')) return 'att';
+    return 'faute';
+  }
+  const effOf = (atts) => { const k = atts.filter((a) => a.grade === '#').length, f = atts.filter((a) => a.grade === '=').length, c = atts.filter((a) => a.grade === '/').length; return { n: atts.length, k, f, c, eff: atts.length ? (k - f - c) / atts.length : null }; };
+  /* Fautes directes (même découpage que le comparatif) : la défense ratée ou l'ace subi ne sont pas des fautes. */
+  const ourFaults = (ev) => ev.filter((e) => VS.isAction(e) && VS.teamOf(e) === 'us' && e.grade === '=' && ['S', 'A', 'B', 'F', 'E', 'X', 'V'].includes(e.skill)).length;
+  const oppFaults = (ev) => ev.filter((e) => VS.isAction(e) && VS.teamOf(e) === 'them' && e.grade === '=' && ['S', 'A', 'F', 'E', 'X'].includes(e.skill)).length;
+  const pl2 = (k, w) => `${k} ${w}${k > 1 ? 's' : ''}`;
+  const sgn = (v) => (v > 0 ? '+' + v : v < 0 ? '−' + -v : '0');
+  const list = (arr) => arr.length <= 1 ? arr.join('') : arr.slice(0, -1).join(', ') + ' et ' + arr[arr.length - 1];
+  const n = (v) => `<span class="num">${v}</span>`;
+
+  /** Toutes les mesures utiles au bilan, calculées sur le match entier. */
+  function measure(roster, events) {
+    const isUs = (e) => VS.isAction(e) && VS.teamOf(e) === 'us';
+    const S = VS.computeStats(events, 'us');
+    const T = S.team.d;
+    const pts = events.filter((e) => e.winner);
+    const won = pts.filter((e) => e.winner === 'us'), lost = pts.filter((e) => e.winner === 'them');
+    const by = (w, k) => pts.filter((e) => e.winner === w && pointType(e) === k).length;
+    const oppRec = VS.computeStats(VS.deriveOpp(events), 'them').team.d;
+    const pl = (num) => { const p = VS.player(num, roster); return `#${num} ${p.name || ''}`.trim(); };
+    const errUs = ourFaults(events), errThem = oppFaults(events);
+    // Fautes directes par geste (même découpage que le comparatif)
+    const fault = (skills) => events.filter((e) => isUs(e) && e.grade === '=' && skills.includes(e.skill)).length;
+    const oppFault = (skills) => events.filter((e) => VS.isAction(e) && VS.teamOf(e) === 'them' && e.grade === '=' && skills.includes(e.skill)).length;
+    // Passes / zones : attaque qui suit la passe
+    const SA = VS.setsAnalysis(events).filter((x) => x.set.target);
+    const zones = VS.TARGET_ORDER.map((z) => {
+      const s = SA.filter((x) => x.set.target === z), atts = s.filter((x) => x.attack).map((x) => x.attack);
+      const byP = {}; atts.forEach((a) => { (byP[a.player] = byP[a.player] || []).push(a); });
+      const who = Object.entries(byP).map(([num, l]) => ({ num: +num, n: l.length })).sort((a, b) => b.n - a.n);
+      return Object.assign({ z, passes: s.length, share: SA.length ? s.length / SA.length : 0, who }, effOf(atts));
+    });
+    const trans = SA.filter((x) => x.ctx === 'T'), perf = SA.filter((x) => x.ctx === 'R#' || x.ctx === 'R+');
+    // Rotations (position du passeur)
+    const rots = [1, 6, 5, 4, 3, 2].map((r) => {
+      const l = pts.filter((e) => e.srot === r), rec = l.filter((e) => !e.weServed), srv = l.filter((e) => e.weServed);
+      const w = l.filter((e) => e.winner === 'us').length;
+      return { r, n: l.length, bal: 2 * w - l.length, rec: rec.length, recW: rec.filter((e) => e.winner === 'us').length, srv: srv.length, srvW: srv.filter((e) => e.winner === 'us').length };
+    });
+    // Sets
+    const setNums = [...new Set(events.map((e) => e.set))].sort((a, b) => a - b);
+    const sets = setNums.map((s) => {
+      const ev = events.filter((e) => e.set === s), d = VS.computeStats(ev, 'us').team.d;
+      const p = ev.filter((e) => e.winner), so = p.filter((e) => e.weServed === false);
+      return { s, us: p.filter((e) => e.winner === 'us').length, them: p.filter((e) => e.winner === 'them').length, d, so: so.length, soW: so.filter((e) => e.winner === 'us').length,
+        errs: ourFaults(ev) };
+    });
+    const soAll = pts.filter((e) => e.weServed === false), bpAll = pts.filter((e) => e.weServed === true);
+    return { S, T, oppRec, won, lost, by, pl, errUs, errThem, fault, oppFault, SA, zones, trans, perf, rots, sets,
+      so: soAll.length ? soAll.filter((e) => e.winner === 'us').length / soAll.length : null,
+      bp: bpAll.length ? bpAll.filter((e) => e.winner === 'us').length / bpAll.length : null };
+  }
+
+  /** Constats positifs / négatifs, chacun avec un poids (≈ points en jeu) pour ne garder que les plus importants. */
+  function findings(M, roster) {
+    const pos = [], neg = [], prio = [];
+    const { T, S, pl } = M;
+    const zl = (z) => `zone ${z} (${VS.TARGETS[z].toLowerCase()})`;
+    const whoTxt = (who) => list(who.filter((w) => w.n >= 3).slice(0, 3).map((w) => `${esc(M.pl(w.num))} (${w.n})`));
+
+    // Contre
+    const bUs = M.by('us', 'bloc'), bThem = M.by('them', 'bloc');
+    const blockers = S.players.filter((p) => p.d.blkPts >= 2).sort((a, b) => b.d.blkPts - a.d.blkPts).slice(0, 3);
+    if (bUs >= 4 && bUs > bThem) pos.push({ w: bUs - bThem + 2, h: `<b>Le contre.</b> ${n(bUs)} points de bloc contre ${n(bThem)} pour l'adversaire, soit ${Math.round(100 * bUs / M.won.length)} % de nos points.${blockers.length ? ' ' + list(blockers.map((p) => `${esc(pl(p.num))} ${n(p.d.blkPts)}`)) + '.' : ''}` });
+    else if (bThem >= bUs + 4) neg.push({ w: bThem - bUs, h: `<b>Le contre adverse.</b> ${n(bThem)} de nos attaques contrées, pour ${n(bUs)} points de bloc de notre côté.` });
+
+    // Fautes directes
+    const fS = M.fault(['S']), fA = M.fault(['A']), oS = M.oppFault(['S']), oA = M.oppFault(['A']);
+    if (M.errUs >= M.errThem + 5) {
+      neg.push({ w: M.errUs - M.errThem + 3, h: `<b>Trop de fautes directes :</b> ${n(M.errUs)} points donnés, contre ${n(M.errThem)} reçus de l'adversaire. Au service : ${n(fS)} (contre ${oS}) ; en attaque : ${n(fA)} (contre ${oA}).` });
+    } else if (M.errThem >= M.errUs + 5) pos.push({ w: M.errThem - M.errUs, h: `<b>Peu de fautes :</b> ${n(M.errUs)} points donnés, contre ${n(M.errThem)} offerts par l'adversaire.` });
+
+    // Service
+    if (T.srvTot >= 20) {
+      const good = S.team.S['#'] + S.team.S['+'];
+      if (T.srvEff < 0 || (T.srvErr >= 8 && T.srvErr > T.ace * 1.3)) {
+        neg.push({ w: T.srvErr - T.ace + 3, h: `<b>Le service :</b> ${n(T.srvErr)} fautes pour ${n(T.ace)} aces, et ${P(good / T.srvTot)} de services qui mettent l'adversaire en difficulté.` });
+        const worst = S.players.filter((p) => p.d.srvErr >= 3).sort((a, b) => b.d.srvErr - a.d.srvErr)[0];
+        prio.push({ w: T.srvErr, h: 'Le service : moins de fautes, sans perdre l’agressivité.', s: `${T.srvErr} fautes au service${worst ? `, dont ${worst.d.srvErr} pour ${esc(pl(worst.num))}` : ''}. Viser la moitié : servir placé (sur un réceptionneur faible, entre deux joueurs) plutôt que frapper au maximum.` });
+      } else if (T.ace >= T.srvErr && T.ace >= 5) pos.push({ w: T.ace - T.srvErr + 3, h: `<b>Le service :</b> ${n(T.ace)} aces pour ${n(T.srvErr)} fautes.` });
+    }
+
+    // Réception
+    if (T.recTot >= 15) {
+      const rec = S.players.filter((p) => p.d.recTot >= 10).sort((a, b) => b.d.recTot - a.d.recTot);
+      const recTxt = list(rec.slice(0, 3).map((p) => `${esc(pl(p.num))} ${p.d.recTot} réc. à ${P(p.d.recPosPct)}`));
+      if (T.recPosPct >= 0.55 || (M.oppRec.recPosPct != null && T.recPosPct >= M.oppRec.recPosPct - 0.02)) pos.push({ w: 4, h: `<b>La réception :</b> ${P(T.recPosPct)} de positives${M.oppRec.recPosPct != null ? `, contre ${P(M.oppRec.recPosPct)} pour l'adversaire` : ''}. ${recTxt}.` });
+      else if (T.recPosPct < 0.5) {
+        neg.push({ w: 6, h: `<b>La réception :</b> seulement ${P(T.recPosPct)} de positives et ${n(T.recErr)} aces subis. ${recTxt}.` });
+        prio.push({ w: 6, h: 'La réception.', s: `${P(T.recPosPct)} de réceptions positives : travailler la réception sur service flottant et smashé, avec un objectif de 55 %.` });
+      }
+    }
+
+    // Attaque par zone de passe
+    const zs = M.zones.filter((x) => x.n >= 8);
+    const teamEff = T.attEff || 0;
+    zs.filter((x) => x.eff >= Math.max(0.25, teamEff + 0.08)).forEach((x) => {
+      pos.push({ w: x.n * (x.eff - teamEff) + 1, h: `<b>L'attaque en ${zl(x.z)} :</b> ${P(x.eff)} d'efficacité sur ${x.n} attaques, avec ${x.f + x.c ? `${x.f + x.c} ${x.f + x.c > 1 ? 'fautes ou contrées' : 'faute ou contrée'}` : 'aucune faute ni contrée'}.${x.who.some((w) => w.n >= 3) ? ' Attaquants : ' + whoTxt(x.who) + '.' : ''}` });
+    });
+    const bad = zs.filter((x) => x.eff < Math.min(0.15, teamEff - 0.05)).sort((a, b) => b.n - a.n);
+    bad.forEach((x) => {
+      neg.push({ w: x.n * (teamEff - x.eff) + 2, h: `<b>L'attaque en ${zl(x.z)} :</b> ${P(x.share)} des passes, mais ${P(x.eff)} d'efficacité sur ${x.n} attaques (${x.f + x.c} fautes ou contrées).${x.who.some((w) => w.n >= 3) ? ' Attaquants : ' + whoTxt(x.who) + '.' : ''}` });
+    });
+    if (bad.length) {
+      const z = bad[0], tr = M.trans.filter((x) => x.set.target === z.z).length;
+      const trShare = M.trans.length ? tr / M.trans.length : 0;
+      if (M.trans.length >= 10 && trShare >= 0.5) neg.push({ w: 3, h: `<b>Les balles de transition :</b> après une défense ou un contre, ${P(trShare)} des passes partent en ${zl(z.z)}, la zone la moins rentable.` });
+      prio.push({ w: z.n * (teamEff - z.eff) + 2, h: `L'attaque en ${zl(z.z)}${trShare >= 0.5 ? ', surtout sur balle haute' : ''}.`, s: `C'est ${trShare >= 0.5 ? 'la balle qu’on reçoit le plus après une défense' : 'une zone très servie'}. Travailler l'attaque face à un bloc à deux : jouer le bloc-out, placer en zone 1 ou 5 ou en feinte, et remettre une balle propre plutôt que forcer.` });
+    }
+    // Meilleure zone sous-utilisée sur bonne réception
+    const best = zs.filter((x) => x.eff >= 0.25).sort((a, b) => b.eff - a.eff)[0];
+    if (best && M.perf.length >= 10) {
+      const sh = M.perf.filter((x) => x.set.target === best.z).length / M.perf.length;
+      if (sh < 0.35) prio.push({ w: 4, h: `Utiliser davantage la ${zl(best.z)} sur bonne réception.`, s: `Seules ${P(sh)} des passes y vont après une réception parfaite ou bonne, alors que c'est notre zone la plus efficace (${P(best.eff)}).` });
+    }
+
+    // Attaquants
+    S.players.filter((p) => p.d.attTot >= 8 && p.d.attEff >= 0.3).sort((a, b) => b.d.attEff - a.d.attEff).slice(0, 2)
+      .forEach((p) => pos.push({ w: p.d.attTot * (p.d.attEff - teamEff), h: `<b>${esc(pl(p.num))} en attaque :</b> ${P(p.d.attEff)} d'efficacité sur ${p.d.attTot} attaques (${pl2(p.d.kill, 'point')}).` }));
+    S.players.filter((p) => p.d.attTot >= 8 && p.d.attEff < 0.1).sort((a, b) => a.d.attEff - b.d.attEff).slice(0, 2)
+      .forEach((p) => neg.push({ w: p.d.attTot * (teamEff - p.d.attEff), h: `<b>${esc(pl(p.num))} en attaque :</b> ${P(p.d.attEff)} d'efficacité sur ${p.d.attTot} attaques (${pl2(p.d.kill, 'point')}, ${pl2(p.d.attErr, 'faute')}, ${pl2(p.d.attBlk, 'contrée')}).` }));
+
+    // Défense
+    if (T.digTot >= 15) {
+      const top = S.players.filter((p) => p.d.digTot >= 8 && p.d.digPosPct >= 0.65).sort((a, b) => b.d.digPosPct - a.d.digPosPct)[0];
+      if (top) pos.push({ w: 3, h: `<b>La défense de ${esc(pl(top.num))} :</b> ${P(top.d.digPosPct)} de défenses positives sur ${top.d.digTot}.` });
+      if (T.digPosPct < 0.55) {
+        neg.push({ w: 3, h: `<b>La défense :</b> ${P(T.digPosPct)} de défenses positives en équipe.` });
+        prio.push({ w: 3, h: 'La défense.', s: `${P(T.digPosPct)} de défenses positives${top ? ` ; ${esc(pl(top.num))} est à ${P(top.d.digPosPct)}, les autres nettement en dessous` : ''}. Travailler la défense en situation, derrière le contre.` });
+      }
+    }
+
+    // Rotations
+    const played = M.rots.filter((r) => r.n >= 10);
+    const bestR = played.slice().sort((a, b) => b.bal - a.bal)[0];
+    if (bestR && bestR.bal >= 3) pos.push({ w: bestR.bal, h: `<b>La rotation P${bestR.r}</b> (passeur en ${bestR.r}) est la meilleure : ${n(sgn(bestR.bal))}${bestR.rec ? `, avec ${Math.round(100 * bestR.recW / bestR.rec)} % de side-out` : ''}.` });
+    const badR = played.filter((r) => r.bal <= -5).sort((a, b) => a.bal - b.bal).slice(0, 2);
+    if (badR.length) {
+      neg.push({ w: -badR.reduce((s, r) => s + r.bal, 0) / 1.5, h: `<b>${badR.length > 1 ? 'Les rotations' : 'La rotation'} ${list(badR.map((r) => 'P' + r.r))}</b> : ${list(badR.map((r) => `${sgn(r.bal)} (${r.rec ? Math.round(100 * r.recW / r.rec) : 0} % de side-out)`))}.` });
+      prio.push({ w: -badR.reduce((s, r) => s + r.bal, 0) / 1.5, h: `Le side-out en ${list(badR.map((r) => 'P' + r.r))}.`, s: `Revoir le placement en réception et la première attaque dans ${badR.length > 1 ? 'ces rotations, qui coûtent' : 'cette rotation, qui coûte'} ${-badR.reduce((s, r) => s + r.bal, 0)} points.` });
+    }
+
+    // Sets : réception et side-out des sets gagnés vs perdus
+    const W = M.sets.filter((s) => s.us > s.them), L = M.sets.filter((s) => s.them > s.us);
+    const agg = (arr) => { const so = arr.reduce((a, s) => a + s.so, 0), w = arr.reduce((a, s) => a + s.soW, 0), r = arr.reduce((a, s) => a + s.d.recTot, 0), rp = arr.reduce((a, s) => a + s.d.recPos, 0); return { so: so ? w / so : null, rec: r ? rp / r : null }; };
+    if (W.length && L.length) {
+      const a = agg(W), b = agg(L);
+      if (a.so != null && b.so != null && a.so - b.so >= 0.12) pos.push({ w: 3, h: `<b>${W.length > 1 ? 'Les sets' : 'Le set'} ${list(W.map((s) => s.s))} :</b> ${P(a.rec)} de réceptions positives et ${P(a.so)} de side-out.` });
+    }
+    const crash = L.filter((s) => s.so >= 8 && s.soW / s.so < 0.3);
+    if (crash.length) neg.push({ w: 3, h: `<b>${crash.length > 1 ? 'Les sets' : 'Le set'} ${list(crash.map((s) => s.s))} :</b> ${list(crash.map((s) => `${s.soW} side-out sur ${s.so} réceptions (${Math.round(100 * s.soW / s.so)} %)`))}.` });
+
+    const top = (a, k) => a.sort((x, y) => y.w - x.w).slice(0, k);
+    return { pos: top(pos, 6), neg: top(neg, 6), prio: top(prio, 5) };
+  }
+
+  /** Phrase d'introduction : résultat, plus gros écart par type de point, lien réception ↔ sets gagnés. */
+  function lead(M, st) {
+    const res = st.setsUs > st.setsThem ? 'Victoire' : st.setsUs < st.setsThem ? 'Défaite' : 'Match nul';
+    const cat = [['att', 'en attaque'], ['bloc', 'au contre'], ['ace', 'au service']].map(([k, l]) => ({ l, a: M.by('us', k), b: M.by('them', k) }));
+    const plus = cat.filter((c) => c.a - c.b >= 4).sort((x, y) => (y.a - y.b) - (x.a - x.b))[0];
+    const minus = cat.filter((c) => c.b - c.a >= 4).sort((x, y) => (y.b - y.a) - (x.b - x.a))[0];
+    const out = [`${res} ${st.setsUs}–${st.setsThem}.`];
+    if (plus) out.push(`On domine l'adversaire ${plus.l} (${plus.a} points contre ${plus.b}).`);
+    if (minus) out.push(`Il nous domine ${minus.l} (${minus.b} points contre ${minus.a}).`);
+    if (M.errUs >= M.errThem + 5) out.push(`Surtout, on lui offre <b>${M.errUs} points sur nos fautes</b>, contre ${M.errThem} dans l'autre sens.`);
+    const W = M.sets.filter((s) => s.us > s.them), L = M.sets.filter((s) => s.them > s.us);
+    if (W.length && L.length) {
+      const so = (arr) => { const t = arr.reduce((a, s) => a + s.so, 0); return t ? arr.reduce((a, s) => a + s.soW, 0) / t : null; };
+      const a = so(W), b = so(L);
+      if (a != null && b != null && a - b >= 0.12) out.push(`Dans les sets gagnés, on fait ${P(a)} de side-out ; dans les sets perdus, ${P(b)}.`);
+    }
+    return out.join(' ');
+  }
+
+  function render() {
+    const id = pickMatchId(m && m.id);
+    m = id ? VS.getMatch(id) : null;
+    document.querySelectorAll('body > .vs-header').forEach((h) => h.remove());
+    VS.header('bilan', m);
+    $('wrap').hidden = !m; $('emptyWrap').hidden = !!m;
+    if (!m) return;
+    const roster = VS.useMatchRoster(m);
+    VS.save('current', m.id);
+    $('matchSel').innerHTML = VS.listMatches().map((x) => `<option value="${x.id}" ${x.id === m.id ? 'selected' : ''}>${esc(VS.fmtDate(x.date))} · vs ${esc(x.opp)}</option>`).join('');
+    const R = VS.replay(m), st = R.state, events = R.events.filter((e) => !e.ignored);
+    const M = measure(roster, events);
+    const F = findings(M, roster);
+
+    $('bHead').innerHTML = `<div class="muted small">${esc(VS.fmtDate(m.date))}${m.comp ? ' · ' + esc(m.comp) : ''}</div>
+      <div class="res"><span class="us">Nous ${st.setsUs}</span> <span class="muted">–</span> <span class="them">${st.setsThem} ${esc(m.opp)}</span></div>
+      <div class="setchips" style="margin-bottom:10px">${st.setScores.map((s) => `<span class="${s.us > s.them ? 'w' : 'l'}">${s.us}–${s.them}</span>`).join('')}${st.over ? '' : `<span>Set ${st.set} en cours : ${st.us}–${st.them}</span>`}</div>
+      <p class="lead">${lead(M, st)}</p>`;
+    const li = (arr, empty) => arr.length ? arr.map((x) => `<li>${x.h}</li>`).join('') : `<li class="muted">${empty}</li>`;
+    $('pos').innerHTML = li(F.pos, 'Rien de marquant ressort des stats.');
+    $('neg').innerHTML = li(F.neg, 'Rien de marquant ressort des stats.');
+    $('prio').innerHTML = F.prio.length ? F.prio.map((x) => `<li>${x.h}<span>${x.s}</span></li>`).join('') : '<li class="muted">Pas de priorité nette sur ce match.</li>';
+
+    // Set par set
+    const cls = (v, good, bad) => (v == null ? '' : v >= good ? 'g' : v < bad ? 'b' : '');
+    $('tSets').innerHTML = `<table class="vs-table"><thead><tr><th>Set</th><th>Score</th><th>Réc. positive</th><th>Side-out</th><th>Attaque</th><th>Eff. attaque</th><th>Fautes</th><th>Contres</th><th>Aces</th></tr></thead><tbody>
+      ${M.sets.map((s) => { const so = s.so ? s.soW / s.so : null; return `<tr><td>${s.s}</td><td>${s.us}–${s.them}</td><td class="${cls(s.d.recPosPct, 0.6, 0.5)}">${P(s.d.recPosPct)}</td><td class="${cls(so, 0.55, 0.4)}">${P(so)} <span class="muted small">${s.soW}/${s.so}</span></td><td>${s.d.kill} / ${s.d.attTot}</td><td class="${cls(s.d.attEff, 0.3, 0.1)}">${P(s.d.attEff)}</td><td>${s.errs}</td><td>${s.d.blkPts}</td><td>${s.d.ace}</td></tr>`; }).join('')}
+      <tr><td><b>Match</b></td><td>${M.won.length}–${M.lost.length}</td><td><b>${P(M.T.recPosPct)}</b></td><td><b>${P(M.so)}</b></td><td>${M.T.kill} / ${M.T.attTot}</td><td><b>${P(M.T.attEff)}</b></td><td>${M.errUs}</td><td>${M.T.blkPts}</td><td>${M.T.ace}</td></tr></tbody></table>`;
+
+    // Attaque par joueur
+    const att = M.S.players.filter((p) => p.d.attTot >= 3).sort((a, b) => b.d.attEff - a.d.attEff);
+    $('tAtt').innerHTML = att.length ? `<table class="vs-table"><thead><tr><th>Joueur</th><th>Poste</th><th>Attaques</th><th>Points</th><th>Fautes</th><th>Contrées</th><th>Efficacité</th></tr></thead><tbody>
+      ${att.map((p) => `<tr><td>${esc(M.pl(p.num))}</td><td class="muted">${esc(VS.POSITIONS[p.pos] || p.pos || '')}</td><td>${p.d.attTot}</td><td>${p.d.kill}</td><td>${p.d.attErr}</td><td>${p.d.attBlk}</td><td class="${cls(p.d.attEff, 0.3, 0.15)}">${P(p.d.attEff)}</td></tr>`).join('')}</tbody></table>` : '<div class="empty-note">Pas assez d’attaques.</div>';
+
+    const few = att.filter((p) => p.d.attTot < 10).map((p) => esc(M.pl(p.num)));
+    $('bNote').textContent = `Bilan calculé automatiquement sur ${m.events.filter(VS.isAction).length} actions saisies, pour un seul match.`
+      + (few.length ? ` Certains chiffres par joueur reposent sur peu d'actions (moins de 10 attaques : ${list(few)}).` : '')
+      + ' Les stats de l’adversaire sont en partie déduites de nos propres actions.';
+    document.title = `Bilan vs ${m.opp} — VolleyStats`;
+  }
+
+  /* Texte brut à coller dans un message (WhatsApp, mail…) */
+  $('btnCopy').addEventListener('click', () => {
+    const txt = (el) => el.innerText.trim();
+    const items = (id) => [...$(id).children].map((li) => '• ' + li.innerText.replace(/\n+/g, ' — ').trim()).join('\n');
+    const text = `BILAN — ${txt($('bHead').querySelector('.res'))} (${[...$('bHead').querySelectorAll('.setchips span')].map((s) => s.textContent).join(', ')})\n\n${txt($('bHead').querySelector('.lead'))}\n\nPOINTS POSITIFS\n${items('pos')}\n\nPOINTS À TRAVAILLER\n${items('neg')}\n\nPRIORITÉS\n${items('prio')}\n\nDétail : ${location.href.split('#')[0]}`;
+    const done = () => VS.toast('Texte copié', 'ok');
+    if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(text).then(done, () => VS.modal('Texte du bilan', `<textarea rows="16" style="width:100%">${esc(text)}</textarea>`));
+    else VS.modal('Texte du bilan', `<textarea rows="16" style="width:100%">${esc(text)}</textarea>`);
+  });
+
+  $('matchSel').addEventListener('change', () => {
+    const id = $('matchSel').value;
+    try { history.replaceState(null, '', 'bilan.html?match=' + encodeURIComponent(id)); } catch (e) { /* rien */ }
+    m = VS.getMatch(id); render();
+  });
+  let t = null;
+  const later = () => { clearTimeout(t); t = setTimeout(render, 60); };
+  window.addEventListener('vs:remote-update', later);
+  window.addEventListener('storage', (e) => { if (!e.key || e.key === 'volleystats.matches') later(); });
+  render();
+})();
+</script>
+</body>
+</html>

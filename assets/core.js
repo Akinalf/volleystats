@@ -438,7 +438,8 @@
     const link = (key, href, label) => `<a href="${href}" class="${page === key ? 'active' : ''}"${page === key ? ' aria-current="page"' : ''}>${label}</a>`;
     const nav = link('home', 'index.html', 'Matchs')
       + (admin && id ? link('entry', 'saisie.html' + q, 'Saisie') : '')
-      + link('dash', 'tableau-de-bord.html' + q, 'Tableau de bord');
+      + link('dash', 'tableau-de-bord.html' + q, 'Tableau de bord')
+      + link('bilan', 'bilan.html' + q, 'Bilan');
     const actions = admin
       ? (m ? '<button type="button" class="vs-btn sm ghost" data-vs="matchRoster">Effectif du match</button>' : '')
         + '<button type="button" class="vs-btn sm ghost" data-vs="template">Modèle d’effectif</button>'
