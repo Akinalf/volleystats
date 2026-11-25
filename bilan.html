@@ -41,8 +41,10 @@
   ul.keys{margin:0;padding-left:1.1em;display:flex;flex-direction:column;gap:9px;line-height:1.5}
   .mvp{display:flex;flex-direction:column;gap:8px}
   .mv{display:grid;grid-template-columns:34px minmax(0,1fr) auto;gap:10px;align-items:center;background:var(--panel2);border-radius:9px;padding:8px 10px}
-  .mv{grid-template-columns:84px minmax(0,1fr) auto}
-  .mv .lb{font-size:11.5px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--accent)}
+  .mvp{gap:14px}.mg{display:flex;flex-direction:column;gap:6px}
+  .mg .lb{font-size:11.5px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--accent)}
+  .mv{grid-template-columns:24px minmax(0,1fr) auto;padding:7px 10px}
+  .mv .rk{font:700 16px Consolas,monospace;color:var(--muted);text-align:center}
   .mv .nm{font-weight:600}.mv .dt{font-size:12.5px;color:var(--muted)}
   .mv .sc2{font:700 18px Consolas,monospace;color:#86efac}
   .b-note{margin:0;max-width:80ch}
@@ -70,7 +72,7 @@
   <div class="grid2b">
     <section class="panel b-sect"><h3>Moments clés</h3><ul class="keys" id="keys"></ul></section>
     <section class="panel b-sect"><h3>Les meilleurs du match</h3><div class="mvp" id="mvp"></div>
-      <p class="muted small" style="margin:8px 0 0">Réception : au moins 10 réceptions. Contre : au moins 2 points.</p></section>
+      <p class="muted small" style="margin:8px 0 0">Réception : joueurs avec au moins 10 réceptions, classés au pourcentage de positives.</p></section>
   </div>
   <p class="muted small b-note" id="bNote"></p>
 </div>
@@ -359,15 +361,16 @@
     // Meilleur marqueur, meilleur réceptionneur, meilleur bloqueur
     const PL = M.S.players;
     const parts = (d) => [[d.kill, 'en attaque'], [d.blkPts, 'au contre'], [d.ace, d.ace > 1 ? 'aces' : 'ace']].filter(([k]) => k).map(([k, l]) => `${k} ${l}`).join(', ');
-    const scorer = PL.filter((p) => p.d.pts >= 3).sort((a, b) => b.d.pts - a.d.pts || a.d.errs - b.d.errs)[0];
-    const recv = PL.filter((p) => p.d.recTot >= 10).sort((a, b) => b.d.recPosPct - a.d.recPosPct || b.d.recTot - a.d.recTot)[0];
-    const blk = PL.filter((p) => p.d.blkPts >= 2).sort((a, b) => b.d.blkPts - a.d.blkPts || b.d.blkTot - a.d.blkTot)[0];
-    const card = (lbl, p, big, dt) => `<div class="mv"><div class="lb">${lbl}</div><div><div class="nm">${name(p.num)}</div><div class="dt">${dt}</div></div><div class="sc2">${big}</div></div>`;
-    const cards = [];
-    if (scorer) cards.push(card('Marqueur', scorer, scorer.d.pts, `${scorer.d.pts} points : ${parts(scorer.d)}`));
-    if (recv) cards.push(card('Réception', recv, P(recv.d.recPosPct), `${recv.d.recTot} réceptions, ${P(recv.d.recPosPct)} de positives dont ${P(recv.d.recPerfPct)} parfaites${recv.d.recErr ? `, ${recv.d.recErr} ace${recv.d.recErr > 1 ? 's' : ''} subi${recv.d.recErr > 1 ? 's' : ''}` : ''}`));
-    if (blk) cards.push(card('Contre', blk, blk.d.blkPts, `${blk.d.blkPts} points de contre sur ${blk.d.blkTot} ballons touchés`));
-    $('mvp').innerHTML = cards.length ? cards.join('') : '<div class="empty-note">Pas assez d’actions saisies.</div>';
+    const top3 = (arr, key) => arr.sort(key).slice(0, 3);
+    const scorers = top3(PL.filter((p) => p.d.pts >= 3), (a, b) => b.d.pts - a.d.pts || a.d.errs - b.d.errs);
+    const recvs = top3(PL.filter((p) => p.d.recTot >= 10), (a, b) => b.d.recPosPct - a.d.recPosPct || b.d.recTot - a.d.recTot);
+    const blks = top3(PL.filter((p) => p.d.blkPts >= 1), (a, b) => b.d.blkPts - a.d.blkPts || a.d.blkTot - b.d.blkTot);
+    const row = (i, p, big, dt) => `<div class="mv"><div class="rk">${i + 1}</div><div><div class="nm">${name(p.num)}</div><div class="dt">${dt}</div></div><div class="sc2">${big}</div></div>`;
+    const group = (title, arr, f) => arr.length ? `<div class="mg"><div class="lb">${title}</div>${arr.map((p, i) => row(i, p, ...f(p))).join('')}</div>` : '';
+    const html = group('Marqueurs', scorers, (p) => [p.d.pts, `${parts(p.d)}`])
+      + group('Réception', recvs, (p) => [P(p.d.recPosPct), `${p.d.recTot} réceptions, dont ${P(p.d.recPerfPct)} parfaites${p.d.recErr ? `, ${p.d.recErr} ace${p.d.recErr > 1 ? 's' : ''} subi${p.d.recErr > 1 ? 's' : ''}` : ''}`])
+      + group('Contre', blks, (p) => [p.d.blkPts, `${p.d.blkPts} point${p.d.blkPts > 1 ? 's' : ''} sur ${p.d.blkTot} ballon${p.d.blkTot > 1 ? 's' : ''} touché${p.d.blkTot > 1 ? 's' : ''} au contre`]);
+    $('mvp').innerHTML = html || '<div class="empty-note">Pas assez d’actions saisies.</div>';
   }
 
   function render() {
