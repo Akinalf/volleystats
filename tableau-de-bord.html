@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="theme-color" content="#0a1324">
 <title>Tableau de bord — VolleyStats</title>
-<link rel="stylesheet" href="assets/app.css?v=20261125g">
+<link rel="stylesheet" href="assets/app.css?v=20261125h">
 <link rel="icon" type="image/png" sizes="32x32" href="assets/icons/favicon-32.png?v=1">
 <link rel="icon" type="image/png" sizes="64x64" href="assets/icons/favicon-64.png?v=1">
 <link rel="apple-touch-icon" href="assets/icons/apple-touch-icon.png?v=1">
@@ -91,10 +91,10 @@
     <div class="panel" id="s-rot" style="grid-column:1/-1"><h3>Rotations <span class="muted small">(position du passeur)</span></h3><div id="chRot"></div></div>
   </div>
 </div>
-<script src="assets/core.js?v=20261125g"></script>
-<script src="assets/config.js?v=20261125g"></script>
-<script src="assets/auth.js?v=20261125g"></script>
-<script src="assets/sync.js?v=20261125g"></script>
+<script src="assets/core.js?v=20261125h"></script>
+<script src="assets/config.js?v=20261125h"></script>
+<script src="assets/auth.js?v=20261125h"></script>
+<script src="assets/sync.js?v=20261125h"></script>
 <script>
 (function () {
   const $ = (id) => document.getElementById(id);
@@ -292,7 +292,7 @@
       const tot = sub.length;
       return Z.map((z) => { const s = sub.filter((x) => x.set.target === z); const p = tot ? s.length / tot : 0;
         const bg = `background:rgba(255,183,3,${(p * 0.75).toFixed(2)})`;
-        return s.length ? clip(s.map((x) => x.set), `${label} → zone ${z}`, `${Math.round(p * 100)} %<small>${s.length}</small>`).replace('<td class="', `<td style="${bg}" class="z `) : '<td class="z muted">–</td>'; }).join('');
+        return s.length ? clip(s.map((x) => x.set), `${label} → zone ${z}`, `${Math.round(p * 100)}<span class="pu">%</span><small>${s.length}</small>`).replace('<td class="', `<td style="${bg}" class="z `) : '<td class="z muted">–</td>'; }).join('');
     };
     const rowOf = (l, sub, shown, sub2) => (sub.length ? `<tr><td class="pl twrap"${sub2 ? ' style="padding-left:38px"' : ''}>${VS.esc(shown || l)}</td><td>${sub.length}</td>${cell(sub, l)}</tr>` : '');
     const bySetter = list.filter((x) => isSetter(x.set.player)), others = list.filter((x) => !isSetter(x.set.player));
@@ -307,7 +307,7 @@
     });
     const totals = list.length;
     const courtCells = [4, 3, 2, 5, 6, 1].map((z) => { const n = list.filter((x) => x.set.target === z).length, p = totals ? n / totals : 0; return `<div style="background:rgba(255,183,3,${(0.1 + p * 0.8).toFixed(2)})">${Math.round(p * 100)} %<small>Zone ${z}</small></div>`; }).join('');
-    $('dist').innerHTML = `<div class="dist-wrap"><div class="table-wrap"><table class="vs-table dist sticky1"><thead><tr><th class="pl">Passe…</th><th>Passes</th>${Z.map((z) => `<th class="zh" style="text-align:center">Zone ${z}<br><span class="small">${VS.esc(VS.TARGETS[z])}</span></th>`).join('')}</tr></thead><tbody>${rows}${totRow}</tbody></table></div>
+    $('dist').innerHTML = `<div class="dist-wrap"><div class="table-wrap"><table class="vs-table dist pdist sticky1"><thead><tr><th class="pl">Passe…</th><th>Passes</th>${Z.map((z) => `<th class="zh" style="text-align:center" title="Zone ${z} · ${VS.esc(VS.TARGETS[z])}"><span class="zw">Zone </span>${z}<br><span class="small">${VS.esc(VS.TARGETS[z])}</span></th>`).join('')}</tr></thead><tbody>${rows}${totRow}</tbody></table></div>
       <div><div class="muted small" style="margin-bottom:6px">Répartition globale (filet en haut)</div><div class="court-mini">${courtCells}</div></div></div>
       <h3 style="margin-top:14px">Efficacité de l'attaque selon la zone de passe</h3>
       <div class="eff-wrap"><div class="table-wrap"><table class="vs-table sticky1"><thead><tr><th class="pl">Zone</th><th>Passes</th><th>Attaques</th><th title="Renvoi à 10 doigts ou en manchette après la passe : hors efficacité">Balles faciles</th><th>Points</th><th>Fautes + contrées</th><th title="Sur 100 attaques, combien font le point">Réussite</th><th title="Comme la réussite, mais chaque attaque ratée (faute ou contrée) retire un point. Au-dessus de 0 : l'attaque rapporte plus qu'elle ne coûte">Efficacité</th><th class="barcol" style="min-width:300px;text-align:center">Répartition des attaques</th></tr></thead><tbody>

@@ -120,7 +120,7 @@ table.vs-table{width:100%;border-collapse:collapse;font-size:13px}
 
 /* tabs */
 .tabs{display:flex;gap:4px;border-bottom:1px solid var(--line);margin-bottom:10px}
-.g-legend{display:none}.grades .pu{margin-left:.2em}
+.g-legend{display:none}.grades .pu,.pdist .pu{margin-left:.2em}
 .tab{background:none;border:none;color:var(--muted);padding:8px 12px;cursor:pointer;font:inherit;border-bottom:2px solid transparent}
 .tab.active{color:var(--text);border-bottom-color:var(--accent);font-weight:600}
 
@@ -266,6 +266,17 @@ table.vs-table{width:100%;border-collapse:collapse;font-size:13px}
   .dash .dist th.zh{white-space:normal;min-width:46px;padding:6px 3px;line-height:1.2;vertical-align:bottom}
   .dash .dist th.zh .small{font-size:10px;font-weight:400}
   .dash .vs-table .barcol{display:none}
+  /* Distribution du passeur : tient dans la largeur (zone = son numéro, nom au toucher) */
+  .dash .pdist{width:100%;table-layout:fixed}
+  .dash .pdist th.zh .small,.dash .pdist th.zh br,.dash .pdist .zw{display:none}
+  .dash .pdist th.zh{font-size:14px;color:var(--text)}
+  .dash .pdist th.pl,.dash .pdist td.pl{width:84px;padding:6px 4px}
+  .dash .pdist td.pl.twrap{min-width:0;max-width:none;font-size:12.5px}
+  .dash .pdist td.pl[style*="padding-left"]{padding-left:14px!important}
+  .dash .pdist th:nth-child(2),.dash .pdist td:nth-child(2){width:34px;padding:6px 2px;text-align:center}
+  .dash .pdist td.z,.dash .pdist th.zh{min-width:0;padding:6px 1px;font-size:12.5px}
+  .dash .pdist td.z small{font-size:10px}
+  .dash .pdist .pu{margin-left:0;font-size:10px}
   /* Répartition par qualité : tient dans la largeur (symboles en titre, légende au-dessus) */
   .dash .g-legend{display:flex;flex-wrap:wrap;gap:5px 12px;font-size:12px;line-height:1.3;margin:0 0 10px;color:var(--muted)}
   .dash .g-legend span{white-space:nowrap}
