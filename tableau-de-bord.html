@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="theme-color" content="#0a1324">
 <title>Tableau de bord — VolleyStats</title>
-<link rel="stylesheet" href="assets/app.css?v=20261125h">
+<link rel="stylesheet" href="assets/app.css?v=20261125i">
 <link rel="icon" type="image/png" sizes="32x32" href="assets/icons/favicon-32.png?v=1">
 <link rel="icon" type="image/png" sizes="64x64" href="assets/icons/favicon-64.png?v=1">
 <link rel="apple-touch-icon" href="assets/icons/apple-touch-icon.png?v=1">
@@ -40,6 +40,7 @@
   @media (max-width:1100px){.dist-wrap{grid-template-columns:minmax(0,1fr)}}
   .eff-wrap{display:flex;flex-wrap:wrap;gap:18px 28px;align-items:flex-start}
   .eff-wrap>.table-wrap{flex:1 1 560px;min-width:0}
+  .tw-outer{min-width:0;max-width:100%}.eff-wrap>.tw-outer,.rot-wrap>.tw-outer{flex:1 1 560px;min-width:0}.rot-wrap>.tw-outer{max-width:900px}
     .rot-wrap{display:flex;flex-wrap:wrap;gap:12px 28px;align-items:flex-start}.rot-wrap>.table-wrap{flex:1 1 560px;max-width:900px;min-width:0}
   .rot-legend{flex:0 1 260px;margin:0;padding:0;list-style:none;display:flex;flex-direction:column;gap:7px;line-height:1.35}.rot-legend b{color:var(--text);font-weight:600}
   .eff-m{display:none;flex:1 1 320px;min-width:0}
@@ -91,10 +92,10 @@
     <div class="panel" id="s-rot" style="grid-column:1/-1"><h3>Rotations <span class="muted small">(position du passeur)</span></h3><div id="chRot"></div></div>
   </div>
 </div>
-<script src="assets/core.js?v=20261125h"></script>
-<script src="assets/config.js?v=20261125h"></script>
-<script src="assets/auth.js?v=20261125h"></script>
-<script src="assets/sync.js?v=20261125h"></script>
+<script src="assets/core.js?v=20261125i"></script>
+<script src="assets/config.js?v=20261125i"></script>
+<script src="assets/auth.js?v=20261125i"></script>
+<script src="assets/sync.js?v=20261125i"></script>
 <script>
 (function () {
   const $ = (id) => document.getElementById(id);
@@ -482,6 +483,36 @@
       ['Joueur', 'Total'].concat(gOrder(sk).flatMap((g) => [`${g} ${VS.hint(sk, g)} (nb)`, `${g} (%)`])),
       gRows.map((r) => [r.text, r.c.tot].concat(gOrder(sk).flatMap((g) => [r.c[g], r.c.tot ? Math.round((100 * r.c[g]) / r.c.tot) : '']))));
   };
+
+  /* ---------- Tableaux qui défilent sur le côté (téléphone) : dégradé au bord + « Glisser → » ---------- */
+  // Chaque .table-wrap est entouré d'un cadre qui porte le dégradé ; la flèche disparaît dès qu'on a fait défiler ce tableau une fois.
+  const swiped = new Set();
+  function markScroll() {
+    document.querySelectorAll('#wrap .table-wrap').forEach((w, i) => {
+      let o = w.parentElement;
+      if (!o.classList.contains('tw-outer')) {
+        o = document.createElement('div'); o.className = 'tw-outer';
+        w.parentElement.insertBefore(o, w); o.appendChild(w);
+        o.insertAdjacentHTML('beforeend', '<span class="tw-hint" aria-hidden="true">Glisser →</span>');
+      }
+      const key = (w.closest('[id]') || {}).id + ':' + i;
+      o.dataset.k = key;
+      const max = w.scrollWidth - w.clientWidth;
+      o.classList.toggle('more-r', max > 4 && w.scrollLeft < max - 4);
+      o.classList.toggle('more-l', w.scrollLeft > 4);
+      o.classList.toggle('swiped', swiped.has(key));
+    });
+  }
+  document.addEventListener('scroll', (e) => {
+    const w = e.target; if (!(w instanceof Element) || !w.classList.contains('table-wrap') || !w.parentElement.classList.contains('tw-outer')) return;
+    if (w.scrollLeft > 4) swiped.add(w.parentElement.dataset.k);
+    setTimeout(markScroll, 30);
+  }, true);
+  let msPending = false;
+  new MutationObserver(() => { if (msPending) return; msPending = true; setTimeout(() => { msPending = false; markScroll(); }, 30); })
+    .observe($('wrap'), { childList: true, subtree: true });
+  window.addEventListener('resize', () => setTimeout(markScroll, 30));
+  setTimeout(markScroll, 30);
 
   /* ---------- Rafraîchissement (données distantes ou autre onglet) ---------- */
   // Recharge l’état depuis le localStorage et refait le rendu en gardant match, set, passeur, onglets et défilement.

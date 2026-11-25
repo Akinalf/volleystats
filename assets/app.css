@@ -120,7 +120,7 @@ table.vs-table{width:100%;border-collapse:collapse;font-size:13px}
 
 /* tabs */
 .tabs{display:flex;gap:4px;border-bottom:1px solid var(--line);margin-bottom:10px}
-.g-legend{display:none}.grades .pu,.pdist .pu{margin-left:.2em}
+.g-legend{display:none}.tw-hint{display:none}.grades .pu,.pdist .pu{margin-left:.2em}
 .tab{background:none;border:none;color:var(--muted);padding:8px 12px;cursor:pointer;font:inherit;border-bottom:2px solid transparent}
 .tab.active{color:var(--text);border-bottom-color:var(--accent);font-weight:600}
 
@@ -266,6 +266,15 @@ table.vs-table{width:100%;border-collapse:collapse;font-size:13px}
   .dash .dist th.zh{white-space:normal;min-width:46px;padding:6px 3px;line-height:1.2;vertical-align:bottom}
   .dash .dist th.zh .small{font-size:10px;font-weight:400}
   .dash .vs-table .barcol{display:none}
+  /* Tableaux qui défilent : dégradé sur le bord où il reste des colonnes + indice « Glisser → » */
+  .dash .tw-outer{position:relative}
+  .dash .tw-outer::before,.dash .tw-outer::after{content:'';position:absolute;top:0;bottom:0;width:34px;pointer-events:none;opacity:0;transition:opacity .2s;z-index:3}
+  .dash .tw-outer::after{right:0;background:linear-gradient(to right,rgba(17,26,46,0),var(--panel))}
+  .dash .tw-outer::before{left:0;background:linear-gradient(to left,rgba(17,26,46,0),var(--panel))}
+  .dash .tw-outer.more-r::after,.dash .tw-outer.more-l::before{opacity:1}
+  .dash .tw-hint{display:block;position:absolute;top:4px;right:4px;z-index:4;pointer-events:none;padding:3px 9px;border-radius:999px;background:var(--accent);color:#1b1400;font-size:12px;font-weight:700;box-shadow:0 2px 8px rgba(0,0,0,.4);opacity:0;transition:opacity .2s;animation:tw-nudge 1.6s ease-in-out infinite}
+  .dash .tw-outer.more-r:not(.swiped) .tw-hint{opacity:1}
+  @keyframes tw-nudge{0%,100%{transform:translateX(0)}50%{transform:translateX(-5px)}}
   /* Distribution du passeur : tient dans la largeur (zone = son numéro, nom au toucher) */
   .dash .pdist{width:100%;table-layout:fixed}
   .dash .pdist th.zh .small,.dash .pdist th.zh br,.dash .pdist .zw{display:none}
