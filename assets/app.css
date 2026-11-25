@@ -246,9 +246,9 @@ table.vs-table{width:100%;border-collapse:collapse;font-size:13px}
   .dash .kpi .l{font-size:12.5px}
   .dash .kpi .s{font-size:11px;line-height:1.35}
   /* Onglets au pouce, défilants */
-  .dash .tabs{overflow-x:auto;scrollbar-width:none;-webkit-overflow-scrolling:touch}
-  .dash .tabs::-webkit-scrollbar{display:none}
-  .dash .tab{flex:none;min-height:44px;padding:8px 12px}
+  .dash .tabs{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:6px;border-bottom:0}
+  .dash .tab{min-height:42px;padding:6px 4px;border:1px solid var(--line);border-radius:9px;background:var(--panel2);color:var(--text)}
+  .dash .tab.active{background:var(--accent);border-color:var(--accent);color:#1b1400}
   .dash .grp-chips{margin-bottom:8px}
   /* Tableaux : plus serrés, 1re colonne figée, défilement horizontal interne */
   .dash .table-wrap{overflow-x:auto;-webkit-overflow-scrolling:touch;overscroll-behavior-x:contain}
