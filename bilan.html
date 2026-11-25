@@ -41,7 +41,8 @@
   ul.keys{margin:0;padding-left:1.1em;display:flex;flex-direction:column;gap:9px;line-height:1.5}
   .mvp{display:flex;flex-direction:column;gap:8px}
   .mv{display:grid;grid-template-columns:34px minmax(0,1fr) auto;gap:10px;align-items:center;background:var(--panel2);border-radius:9px;padding:8px 10px}
-  .mv .rk{font:700 20px Consolas,monospace;color:var(--accent);text-align:center}
+  .mv{grid-template-columns:84px minmax(0,1fr) auto}
+  .mv .lb{font-size:11.5px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--accent)}
   .mv .nm{font-weight:600}.mv .dt{font-size:12.5px;color:var(--muted)}
   .mv .sc2{font:700 18px Consolas,monospace;color:#86efac}
   .b-note{margin:0;max-width:80ch}
@@ -68,8 +69,8 @@
   <section class="panel b-sect"><h3>Le match, set par set</h3><div class="story" id="story"></div></section>
   <div class="grid2b">
     <section class="panel b-sect"><h3>Moments clés</h3><ul class="keys" id="keys"></ul></section>
-    <section class="panel b-sect"><h3>Les joueurs du match</h3><div class="mvp" id="mvp"></div>
-      <p class="muted small" style="margin:8px 0 0">Classement : points marqués (attaque, contre, ace) moins fautes directes.</p></section>
+    <section class="panel b-sect"><h3>Les meilleurs du match</h3><div class="mvp" id="mvp"></div>
+      <p class="muted small" style="margin:8px 0 0">Réception : au moins 10 réceptions. Contre : au moins 2 points.</p></section>
   </div>
   <p class="muted small b-note" id="bNote"></p>
 </div>
@@ -331,7 +332,7 @@
       const startP = ev.filter((e) => e.winner).slice(0, 8), sw = startP.filter((e) => e.winner === 'us').length;
       if (startP.length === 8 && Math.abs(2 * sw - 8) >= 4) lines.push(`<span class="k">Départ :</span> ${sc(sw, 8 - sw)} sur les 8 premiers points.`);
       const endP = ev.filter(tight);
-      if (endP.length >= 3) { const w = endP.filter((e) => e.winner === 'us').length; lines.push(`<span class="k">Fin de set serrée (les deux à ${late - 3} ou plus) :</span> ${sc(w, endP.length - w)}.`); }
+      if (endP.length >= 3) { const w = endP.filter((e) => e.winner === 'us').length; lines.push(`<span class="k">Fin de set, à partir de ${late - 3} partout :</span> ${n(w)} points pour nous, ${n(endP.length - w)} pour eux.`); }
       const top = VS.computeStats(ev, 'us').players.map((p) => ({ p, v: p.d.pts })).sort((a, b) => b.v - a.v)[0];
       if (top && top.v >= 3) lines.push(`<span class="k">Meilleur marqueur :</span> ${name(top.p.num)}, ${top.v} points.`);
       return `<div class="sc ${won ? 'w' : ''}"><div class="st"><b>Set ${x.s}</b><span>${x.us}–${x.them}</span></div>${lines.map((l) => `<p>${l}</p>`).join('')}</div>`;
@@ -344,7 +345,8 @@
     if (bestUs && bestUs.n >= 3) { const sv = server(events, bestUs); keys.push(`<b>Notre plus belle série :</b> ${bestUs.n} points d'affilée dans le set ${bestUs.first.set}, de ${sc(bestUs.fromUs, bestUs.fromThem)} à ${sc(bestUs.last.us, bestUs.last.them)}${sv ? `, au service de ${name(sv)}` : ''}.`); }
     if (bestThem && bestThem.n >= 3) keys.push(`<b>La série qui fait mal :</b> ${bestThem.n} points encaissés dans le set ${bestThem.first.set}, de ${sc(bestThem.fromUs, bestThem.fromThem)} à ${sc(bestThem.last.us, bestThem.last.them)}, passeur en P${bestThem.first.srot}.`);
     const ends = events.filter(tight);
-    if (ends.length >= 6) { const w = ends.filter((e) => e.winner === 'us').length; keys.push(`<b>Fins de set serrées</b> (les deux équipes à 17 ou plus, 7 au tie-break) : ${sc(w, ends.length - w)}, soit ${P(w / ends.length)} des points gagnés, contre ${P(M.won.length / (M.won.length + M.lost.length))} sur l'ensemble du match.`); }
+    if (ends.length >= 6) { const w = ends.filter((e) => e.winner === 'us').length; const r = w / ends.length, all = M.won.length / (M.won.length + M.lost.length);
+      keys.push(`<b>Fins de set accrochées :</b> à partir de 17 partout (7 au tie-break), on marque ${n(w)} points et l'adversaire ${n(ends.length - w)}. ${r >= all + 0.07 ? 'On est meilleurs dans les moments chauds que sur le reste du match.' : r <= all - 0.07 ? 'On perd pied dans les moments chauds.' : 'Pas de différence avec le reste du match.'}`); }
     const starts = M.sets.map((x) => events.filter((e) => e.set === x.s && e.winner).slice(0, 8)).flat();
     if (starts.length >= 16) { const w = starts.filter((e) => e.winner === 'us').length; keys.push(`<b>Débuts de set</b> (8 premiers points) : ${sc(w, starts.length - w)}.`); }
     // Échanges longs : au moins deux de nos attaques dans l'échange
@@ -354,10 +356,18 @@
     if (longR.length >= 6) { const w = longR.filter((r) => r.w === 'us').length; keys.push(`<b>Échanges longs</b> (au moins deux attaques de notre côté) : ${sc(w, longR.length - w)}${w / longR.length >= 0.55 ? ' : on tient la distance' : w / longR.length < 0.45 ? ' : on craque quand ça dure' : ''}.`); }
     $('keys').innerHTML = keys.length ? keys.map((k) => `<li>${k}</li>`).join('') : '<li class="muted">Pas assez de points saisis.</li>';
 
-    // Joueurs du match
-    const ranked = M.S.players.map((p) => ({ p, v: p.d.pts - p.d.errs })).filter((x) => x.p.d.pts >= 3).sort((a, b) => b.v - a.v || b.p.d.pts - a.p.d.pts).slice(0, 3);
-    const parts = (d) => [[d.kill, 'att.'], [d.blkPts, 'contre' + (d.blkPts > 1 ? 's' : '')], [d.ace, 'ace' + (d.ace > 1 ? 's' : '')]].filter(([k]) => k).map(([k, l]) => `${k} ${l}`).join(', ');
-    $('mvp').innerHTML = ranked.length ? ranked.map((x, i) => `<div class="mv"><div class="rk">${i + 1}</div><div><div class="nm">${name(x.p.num)} <span class="muted small">${esc(VS.POSITIONS[x.p.pos] || '')}</span></div><div class="dt">${x.p.d.pts} points (${parts(x.p.d)}) · ${x.p.d.errs} faute${x.p.d.errs > 1 ? 's' : ''}</div></div><div class="sc2">${x.v >= 0 ? '+' : '−'}${Math.abs(x.v)}</div></div>`).join('') : '<div class="empty-note">Pas assez de points marqués.</div>';
+    // Meilleur marqueur, meilleur réceptionneur, meilleur bloqueur
+    const PL = M.S.players;
+    const parts = (d) => [[d.kill, 'en attaque'], [d.blkPts, 'au contre'], [d.ace, d.ace > 1 ? 'aces' : 'ace']].filter(([k]) => k).map(([k, l]) => `${k} ${l}`).join(', ');
+    const scorer = PL.filter((p) => p.d.pts >= 3).sort((a, b) => b.d.pts - a.d.pts || a.d.errs - b.d.errs)[0];
+    const recv = PL.filter((p) => p.d.recTot >= 10).sort((a, b) => b.d.recPosPct - a.d.recPosPct || b.d.recTot - a.d.recTot)[0];
+    const blk = PL.filter((p) => p.d.blkPts >= 2).sort((a, b) => b.d.blkPts - a.d.blkPts || b.d.blkTot - a.d.blkTot)[0];
+    const card = (lbl, p, big, dt) => `<div class="mv"><div class="lb">${lbl}</div><div><div class="nm">${name(p.num)}</div><div class="dt">${dt}</div></div><div class="sc2">${big}</div></div>`;
+    const cards = [];
+    if (scorer) cards.push(card('Marqueur', scorer, scorer.d.pts, `${scorer.d.pts} points : ${parts(scorer.d)}`));
+    if (recv) cards.push(card('Réception', recv, P(recv.d.recPosPct), `${recv.d.recTot} réceptions, ${P(recv.d.recPosPct)} de positives dont ${P(recv.d.recPerfPct)} parfaites${recv.d.recErr ? `, ${recv.d.recErr} ace${recv.d.recErr > 1 ? 's' : ''} subi${recv.d.recErr > 1 ? 's' : ''}` : ''}`));
+    if (blk) cards.push(card('Contre', blk, blk.d.blkPts, `${blk.d.blkPts} points de contre sur ${blk.d.blkTot} ballons touchés`));
+    $('mvp').innerHTML = cards.length ? cards.join('') : '<div class="empty-note">Pas assez d’actions saisies.</div>';
   }
 
   function render() {
