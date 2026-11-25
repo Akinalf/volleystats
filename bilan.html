@@ -26,13 +26,24 @@
   .pn .pos h3{color:#86efac}.pn .neg h3{color:#fca5a5}
   .pn ul{margin:6px 0 4px;padding-left:1.1em;display:flex;flex-direction:column;gap:9px;line-height:1.5}
   .pn li b{color:var(--text)}
-  .num{font-variant-numeric:tabular-nums;font-weight:600}
+  .num{font-variant-numeric:tabular-nums;font-weight:600;white-space:nowrap}
   .b-sect h3{margin:0 0 8px}
-  .b-sect .vs-table td,.b-sect .vs-table th{white-space:nowrap}
-  td.g{color:#86efac;font-weight:600} td.b{color:#fca5a5;font-weight:600}
-  ol.prio{margin:4px 0 0;padding-left:1.4em;display:flex;flex-direction:column;gap:12px;max-width:78ch;line-height:1.5}
-  ol.prio li::marker{color:var(--accent);font-weight:700}
-  ol.prio span{display:block;color:var(--muted);font-size:13.5px}
+  .story{display:grid;grid-template-columns:repeat(auto-fill,minmax(270px,1fr));gap:10px}
+  .sc{background:var(--panel2);border-radius:9px;padding:10px 12px;border-left:4px solid #ef4444;display:flex;flex-direction:column;gap:6px;min-width:0}
+  .sc.w{border-left-color:#3b82f6}
+  .sc .st{display:flex;justify-content:space-between;align-items:baseline;gap:8px}
+  .sc .st b{font-size:15px}.sc .st span{font:700 17px Consolas,monospace}
+  .sc.w .st span{color:#93c5fd}.sc:not(.w) .st span{color:#fca5a5}
+  .sc p{margin:0;font-size:13.5px;line-height:1.45}
+  .sc .k{color:var(--muted)}
+  .grid2b{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:14px}
+  @media (max-width:760px){.grid2b{grid-template-columns:minmax(0,1fr)}}
+  ul.keys{margin:0;padding-left:1.1em;display:flex;flex-direction:column;gap:9px;line-height:1.5}
+  .mvp{display:flex;flex-direction:column;gap:8px}
+  .mv{display:grid;grid-template-columns:34px minmax(0,1fr) auto;gap:10px;align-items:center;background:var(--panel2);border-radius:9px;padding:8px 10px}
+  .mv .rk{font:700 20px Consolas,monospace;color:var(--accent);text-align:center}
+  .mv .nm{font-weight:600}.mv .dt{font-size:12.5px;color:var(--muted)}
+  .mv .sc2{font:700 18px Consolas,monospace;color:#86efac}
   .b-note{margin:0;max-width:80ch}
 </style>
 </head>
@@ -54,9 +65,12 @@
     <div class="panel pos"><h3>Points positifs</h3><ul id="pos"></ul></div>
     <div class="panel neg"><h3>Points à travailler</h3><ul id="neg"></ul></div>
   </div>
-  <section class="panel b-sect"><h3>Set par set</h3><div class="table-wrap" id="tSets"></div></section>
-  <section class="panel b-sect"><h3>Attaque par joueur</h3><div class="table-wrap" id="tAtt"></div>
-    <p class="muted small" style="margin:8px 0 0">Efficacité = (points − fautes − contrées) ÷ attaques. Repères club : au-dessus de 30 %, très bon ; en dessous de 15 %, à travailler.</p></section>
+  <section class="panel b-sect"><h3>Le match, set par set</h3><div class="story" id="story"></div></section>
+  <div class="grid2b">
+    <section class="panel b-sect"><h3>Moments clés</h3><ul class="keys" id="keys"></ul></section>
+    <section class="panel b-sect"><h3>Les joueurs du match</h3><div class="mvp" id="mvp"></div>
+      <p class="muted small" style="margin:8px 0 0">Classement : points marqués (attaque, contre, ace) moins fautes directes.</p></section>
+  </div>
   <p class="muted small b-note" id="bNote"></p>
 </div>
 <script src="assets/core.js?v=20261125j"></script>
@@ -264,6 +278,88 @@
     return out.join(' ');
   }
 
+  /* ---------- Récit : set par set, moments clés, joueurs du match ---------- */
+  const sc = (a, b) => `<span class="num">${a}–${b}</span>`;
+  /** Séries de points consécutifs d'un set (score au début de la série, points de la série, serveur le plus présent). */
+  function runsOf(ev) {
+    const pts = ev.filter((e) => e.winner), runs = [];
+    let cur = null;
+    pts.forEach((e) => {
+      if (!cur || cur.w !== e.winner) {
+        cur = { w: e.winner, n: 0, fromUs: e.us - (e.winner === 'us' ? 1 : 0), fromThem: e.them - (e.winner === 'them' ? 1 : 0), first: e, last: e };
+        runs.push(cur);
+      }
+      cur.n++; cur.last = e;
+    });
+    return runs;
+  }
+  function server(ev, run) {
+    const inRun = ev.filter((e) => e.set === run.first.set && e.rally >= run.first.rally && e.rally <= run.last.rally && VS.isAction(e) && VS.teamOf(e) === 'us' && e.skill === 'S');
+    const c = {}; inRun.forEach((e) => { c[e.player] = (c[e.player] || 0) + 1; });
+    const best = Object.entries(c).sort((a, b) => b[1] - a[1])[0];
+    return best && best[1] >= Math.max(2, run.n - 1) ? +best[0] : null;
+  }
+  /** Ce qui a fait la différence dans un set : la mesure la plus éloignée de la moyenne du match, dans le sens du résultat. */
+  function keyFactor(x, M) {
+    const so = x.so ? x.soW / x.so : null, rate = (x.us + x.them) ? x.errs / (x.us + x.them) : null;
+    const mRate = (M.won.length + M.lost.length) ? M.errUs / (M.won.length + M.lost.length) : null;
+    const c = [];
+    if (x.d.recTot >= 5 && M.T.recPosPct != null) c.push({ dv: x.d.recPosPct - M.T.recPosPct, t: `la réception, ${P(x.d.recPosPct)} de positives (${P(M.T.recPosPct)} sur le match)` });
+    if (x.so >= 5 && M.so != null) c.push({ dv: so - M.so, t: `le side-out, ${x.soW} sur ${x.so} (${P(so)})` });
+    if (x.d.attTot >= 8 && M.T.attEff != null) c.push({ dv: x.d.attEff - M.T.attEff, t: `l'attaque, ${P(x.d.attEff)} d'efficacité (${P(M.T.attEff)} sur le match)` });
+    if (rate != null && mRate != null) c.push({ dv: (mRate - rate) * 1.5, t: x.errs <= mRate * (x.us + x.them) ? `peu de fautes, ${x.errs} points donnés` : `les fautes, ${x.errs} points donnés` });
+    const won = x.us > x.them;
+    const best = c.sort((a, b) => (won ? b.dv - a.dv : a.dv - b.dv))[0];
+    return best && (won ? best.dv > 0.03 : best.dv < -0.03) ? best.t : null;
+  }
+  /** Point joué en fin de set serrée : avant le point, les deux équipes ont au moins 17 (7 au tie-break). */
+  const tight = (e) => { if (!e.winner) return false; const min = e.set === 5 ? 7 : 17; return e.us - (e.winner === 'us') >= min && e.them - (e.winner === 'them') >= min; };
+  function renderStory(M, events, roster) {
+    const name = (n) => esc(M.pl(n));
+    const allRuns = [];
+    $('story').innerHTML = M.sets.map((x) => {
+      const ev = events.filter((e) => e.set === x.s), runs = runsOf(ev);
+      runs.forEach((r) => allRuns.push(r));
+      const won = x.us > x.them, late = x.s === 5 ? 10 : 20;
+      const lines = [];
+      const f = keyFactor(x, M);
+      if (f) lines.push(`<span class="k">${won ? 'Ce qui a fait la différence' : 'Ce qui a coûté le set'} :</span> ${f}.`);
+      const rUs = runs.filter((r) => r.w === 'us').sort((a, b) => b.n - a.n)[0], rThem = runs.filter((r) => r.w === 'them').sort((a, b) => b.n - a.n)[0];
+      const runTxt = (r, us) => `<span class="k">${us ? 'Série' : 'Série encaissée'} :</span> ${r.n} points d'affilée, de ${sc(r.fromUs, r.fromThem)} à ${sc(r.last.us, r.last.them)}${(() => { const sv = us ? server(ev, r) : null; return sv ? `, au service de ${name(sv)}` : ''; })()}.`;
+      if (rThem && rThem.n >= 4 && (!rUs || rThem.n >= rUs.n)) lines.push(runTxt(rThem, false));
+      if (rUs && rUs.n >= 4) lines.push(runTxt(rUs, true));
+      const startP = ev.filter((e) => e.winner).slice(0, 8), sw = startP.filter((e) => e.winner === 'us').length;
+      if (startP.length === 8 && Math.abs(2 * sw - 8) >= 4) lines.push(`<span class="k">Départ :</span> ${sc(sw, 8 - sw)} sur les 8 premiers points.`);
+      const endP = ev.filter(tight);
+      if (endP.length >= 3) { const w = endP.filter((e) => e.winner === 'us').length; lines.push(`<span class="k">Fin de set serrée (les deux à ${late - 3} ou plus) :</span> ${sc(w, endP.length - w)}.`); }
+      const top = VS.computeStats(ev, 'us').players.map((p) => ({ p, v: p.d.pts })).sort((a, b) => b.v - a.v)[0];
+      if (top && top.v >= 3) lines.push(`<span class="k">Meilleur marqueur :</span> ${name(top.p.num)}, ${top.v} points.`);
+      return `<div class="sc ${won ? 'w' : ''}"><div class="st"><b>Set ${x.s}</b><span>${x.us}–${x.them}</span></div>${lines.map((l) => `<p>${l}</p>`).join('')}</div>`;
+    }).join('');
+
+    // Moments clés
+    const keys = [];
+    const bestUs = allRuns.filter((r) => r.w === 'us').sort((a, b) => b.n - a.n)[0];
+    const bestThem = allRuns.filter((r) => r.w === 'them').sort((a, b) => b.n - a.n)[0];
+    if (bestUs && bestUs.n >= 3) { const sv = server(events, bestUs); keys.push(`<b>Notre plus belle série :</b> ${bestUs.n} points d'affilée dans le set ${bestUs.first.set}, de ${sc(bestUs.fromUs, bestUs.fromThem)} à ${sc(bestUs.last.us, bestUs.last.them)}${sv ? `, au service de ${name(sv)}` : ''}.`); }
+    if (bestThem && bestThem.n >= 3) keys.push(`<b>La série qui fait mal :</b> ${bestThem.n} points encaissés dans le set ${bestThem.first.set}, de ${sc(bestThem.fromUs, bestThem.fromThem)} à ${sc(bestThem.last.us, bestThem.last.them)}, passeur en P${bestThem.first.srot}.`);
+    const ends = events.filter(tight);
+    if (ends.length >= 6) { const w = ends.filter((e) => e.winner === 'us').length; keys.push(`<b>Fins de set serrées</b> (les deux équipes à 17 ou plus, 7 au tie-break) : ${sc(w, ends.length - w)}, soit ${P(w / ends.length)} des points gagnés, contre ${P(M.won.length / (M.won.length + M.lost.length))} sur l'ensemble du match.`); }
+    const starts = M.sets.map((x) => events.filter((e) => e.set === x.s && e.winner).slice(0, 8)).flat();
+    if (starts.length >= 16) { const w = starts.filter((e) => e.winner === 'us').length; keys.push(`<b>Débuts de set</b> (8 premiers points) : ${sc(w, starts.length - w)}.`); }
+    // Échanges longs : au moins deux de nos attaques dans l'échange
+    const byRally = new Map();
+    events.filter((e) => VS.isAction(e)).forEach((e) => { const k = e.set + ':' + e.rally; if (!byRally.has(k)) byRally.set(k, { att: 0, w: null }); const r = byRally.get(k); if (VS.teamOf(e) === 'us' && e.skill === 'A') r.att++; if (e.winner) r.w = e.winner; });
+    const longR = [...byRally.values()].filter((r) => r.att >= 2 && r.w);
+    if (longR.length >= 6) { const w = longR.filter((r) => r.w === 'us').length; keys.push(`<b>Échanges longs</b> (au moins deux attaques de notre côté) : ${sc(w, longR.length - w)}${w / longR.length >= 0.55 ? ' : on tient la distance' : w / longR.length < 0.45 ? ' : on craque quand ça dure' : ''}.`); }
+    $('keys').innerHTML = keys.length ? keys.map((k) => `<li>${k}</li>`).join('') : '<li class="muted">Pas assez de points saisis.</li>';
+
+    // Joueurs du match
+    const ranked = M.S.players.map((p) => ({ p, v: p.d.pts - p.d.errs })).filter((x) => x.p.d.pts >= 3).sort((a, b) => b.v - a.v || b.p.d.pts - a.p.d.pts).slice(0, 3);
+    const parts = (d) => [[d.kill, 'att.'], [d.blkPts, 'contre' + (d.blkPts > 1 ? 's' : '')], [d.ace, 'ace' + (d.ace > 1 ? 's' : '')]].filter(([k]) => k).map(([k, l]) => `${k} ${l}`).join(', ');
+    $('mvp').innerHTML = ranked.length ? ranked.map((x, i) => `<div class="mv"><div class="rk">${i + 1}</div><div><div class="nm">${name(x.p.num)} <span class="muted small">${esc(VS.POSITIONS[x.p.pos] || '')}</span></div><div class="dt">${x.p.d.pts} points (${parts(x.p.d)}) · ${x.p.d.errs} faute${x.p.d.errs > 1 ? 's' : ''}</div></div><div class="sc2">${x.v >= 0 ? '+' : '−'}${Math.abs(x.v)}</div></div>`).join('') : '<div class="empty-note">Pas assez de points marqués.</div>';
+  }
+
   function render() {
     const id = pickMatchId(m && m.id);
     m = id ? VS.getMatch(id) : null;
@@ -286,21 +382,8 @@
     $('pos').innerHTML = li(F.pos, 'Rien de marquant ressort des stats.');
     $('neg').innerHTML = li(F.neg, 'Rien de marquant ressort des stats.');
 
-    // Set par set
-    const cls = (v, good, bad) => (v == null ? '' : v >= good ? 'g' : v < bad ? 'b' : '');
-    $('tSets').innerHTML = `<table class="vs-table"><thead><tr><th>Set</th><th>Score</th><th>Réc. positive</th><th>Side-out</th><th>Attaque</th><th>Eff. attaque</th><th>Fautes</th><th>Contres</th><th>Aces</th></tr></thead><tbody>
-      ${M.sets.map((s) => { const so = s.so ? s.soW / s.so : null; return `<tr><td>${s.s}</td><td>${s.us}–${s.them}</td><td class="${cls(s.d.recPosPct, 0.6, 0.5)}">${P(s.d.recPosPct)}</td><td class="${cls(so, 0.55, 0.4)}">${P(so)} <span class="muted small">${s.soW}/${s.so}</span></td><td>${s.d.kill} / ${s.d.attTot}</td><td class="${cls(s.d.attEff, 0.3, 0.1)}">${P(s.d.attEff)}</td><td>${s.errs}</td><td>${s.d.blkPts}</td><td>${s.d.ace}</td></tr>`; }).join('')}
-      <tr><td><b>Match</b></td><td>${M.won.length}–${M.lost.length}</td><td><b>${P(M.T.recPosPct)}</b></td><td><b>${P(M.so)}</b></td><td>${M.T.kill} / ${M.T.attTot}</td><td><b>${P(M.T.attEff)}</b></td><td>${M.errUs}</td><td>${M.T.blkPts}</td><td>${M.T.ace}</td></tr></tbody></table>`;
-
-    // Attaque par joueur
-    const att = M.S.players.filter((p) => p.d.attTot >= 3).sort((a, b) => b.d.attEff - a.d.attEff);
-    $('tAtt').innerHTML = att.length ? `<table class="vs-table"><thead><tr><th>Joueur</th><th>Poste</th><th>Attaques</th><th>Points</th><th>Fautes</th><th>Contrées</th><th>Efficacité</th></tr></thead><tbody>
-      ${att.map((p) => `<tr><td>${esc(M.pl(p.num))}</td><td class="muted">${esc(VS.POSITIONS[p.pos] || p.pos || '')}</td><td>${p.d.attTot}</td><td>${p.d.kill}</td><td>${p.d.attErr}</td><td>${p.d.attBlk}</td><td class="${cls(p.d.attEff, 0.3, 0.15)}">${P(p.d.attEff)}</td></tr>`).join('')}</tbody></table>` : '<div class="empty-note">Pas assez d’attaques.</div>';
-
-    const few = att.filter((p) => p.d.attTot < 10).map((p) => esc(M.pl(p.num)));
-    $('bNote').textContent = `Bilan calculé automatiquement sur ${m.events.filter(VS.isAction).length} actions saisies, pour un seul match.`
-      + (few.length ? ` Certains chiffres par joueur reposent sur peu d'actions (moins de 10 attaques : ${list(few)}).` : '')
-      + ' Les stats de l’adversaire sont en partie déduites de nos propres actions.';
+    renderStory(M, events, roster);
+    $('bNote').textContent = `Bilan calculé automatiquement sur ${m.events.filter(VS.isAction).length} actions saisies, pour un seul match : sur un set, certains chiffres reposent sur peu d'actions. Les stats de l’adversaire sont en partie déduites de nos propres actions. Les tableaux détaillés sont dans le tableau de bord.`;
     document.title = `Bilan vs ${m.opp} — VolleyStats`;
   }
 
