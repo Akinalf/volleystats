@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="theme-color" content="#0a1324">
 <title>Tableau de bord — VolleyStats</title>
-<link rel="stylesheet" href="assets/app.css?v=20261125b">
+<link rel="stylesheet" href="assets/app.css?v=20261125c">
 <style>
   .wrap{padding:8px 16px 30px;display:flex;flex-direction:column;gap:14px}
   .sect{display:flex;flex-direction:column;gap:14px;min-width:0}
@@ -65,6 +65,7 @@
   <div class="panel" id="s-qualite">
     <div class="panel-h"><h3>Répartition par qualité</h3><span class="muted small">Pour chaque qualité : nombre ÷ total des actions du joueur dans ce geste</span></div>
     <div class="tabs" id="gTabs"></div>
+    <div class="g-legend" id="gLegend"></div>
     <div class="table-wrap" id="grades"></div>
     <div class="head-actions" style="margin-top:8px;justify-content:space-between"><span class="muted small" id="gNote"></span><button class="vs-btn sm desk-only" id="btnGradesCsv">Exporter ce tableau (CSV)</button></div>
   </div>
@@ -81,10 +82,10 @@
     <div class="panel" id="s-rot" style="grid-column:1/-1"><h3>Rotations <span class="muted small">(position du passeur)</span></h3><div id="chRot"></div></div>
   </div>
 </div>
-<script src="assets/core.js?v=20261125b"></script>
-<script src="assets/config.js?v=20261125b"></script>
-<script src="assets/auth.js?v=20261125b"></script>
-<script src="assets/sync.js?v=20261125b"></script>
+<script src="assets/core.js?v=20261125c"></script>
+<script src="assets/config.js?v=20261125c"></script>
+<script src="assets/auth.js?v=20261125c"></script>
+<script src="assets/sync.js?v=20261125c"></script>
 <script>
 (function () {
   const $ = (id) => document.getElementById(id);
@@ -423,9 +424,9 @@
     const sk = gSkill, label = VS.SKILLS[sk].label, S = lastS;
     const O = VS.computeStats(lastOppEv, 'them');
     gRows = S.players.filter((p) => p[sk].tot).sort((a, b) => b[sk].tot - a[sk].tot)
-      .map((p) => ({ html: `<b>#${p.num}</b> ${VS.esc(p.name)} <span class="muted small pos">${p.pos || ''}</span>`, text: VS.pname(p.num, roster), c: p[sk], evs: pick((e) => e.player === p.num && e.skill === sk) }));
-    gRows.push({ html: '<b>Total équipe</b>', text: 'Total équipe', c: S.team[sk], evs: pick((e) => e.skill === sk), cls: 'tot' });
-    if (O.team[sk].tot) gRows.push({ html: `<b class="tag-them">${VS.esc(m.opp)}</b> <span class="muted small">(déduit)</span>`, text: m.opp, c: O.team[sk], evs: lastOppEv.filter((e) => e.skill === sk) });
+      .map((p) => ({ html: `<b>#${p.num}</b> <span class="nm">${VS.esc(p.name)}</span> <span class="muted small pos">${p.pos || ''}</span>`, text: VS.pname(p.num, roster), c: p[sk], evs: pick((e) => e.player === p.num && e.skill === sk) }));
+    gRows.push({ html: '<b>Total<span class="ded"> équipe</span></b>', text: 'Total équipe', c: S.team[sk], evs: pick((e) => e.skill === sk), cls: 'tot' });
+    if (O.team[sk].tot) gRows.push({ html: `<b class="tag-them">${VS.esc(m.opp)}</b> <span class="muted small ded">(déduit)</span>`, text: m.opp, c: O.team[sk], evs: lastOppEv.filter((e) => e.skill === sk) });
     const alpha = (p) => Math.round(20 + p * 200).toString(16).padStart(2, '0');
     const body = gRows.map((r) => {
       const tot = r.c.tot;
@@ -433,15 +434,17 @@
         const n = r.c[g];
         if (!n) return '<td class="z muted">–</td>';
         const p = n / tot;
-        return clip(r.evs.filter((e) => e.grade === g), `${r.text} — ${label} ${g} (${VS.hint(sk, g)})`, `${Math.round(p * 100)} %<small>${n}</small>`)
+        return clip(r.evs.filter((e) => e.grade === g), `${r.text} — ${label} ${g} (${VS.hint(sk, g)})`, `${Math.round(p * 100)}<span class="pu">%</span><small>${n}</small>`)
           .replace('<td class="', `<td style="background:${VS.GRADES[g].color}${alpha(p)}" class="z `);
       }).join('');
       const bar = `<div class="bar" style="min-width:140px">${gOrder(sk).map((g) => `<i style="width:${tot ? (100 * r.c[g]) / tot : 0}%;background:${VS.GRADES[g].color}" title="${VS.esc(g)} : ${r.c[g]}"></i>`).join('')}</div>`;
       return `<tr style="${r.cls === 'tot' ? 'border-top:2px solid var(--line)' : ''}"><td class="pl">${r.html}</td><td><b>${tot}</b></td>${cells}<td class="barcol">${bar}</td></tr>`;
     }).join('');
-    $('grades').innerHTML = gRows.length > 1 || S.team[sk].tot ? `<table class="vs-table dist sticky1 grades"><thead><tr><th class="pl">Joueur</th><th>Total</th>${gOrder(sk).map((g) => `<th class="zh" style="text-align:center">${VS.gchip(g)}<br><span class="small">${VS.esc(VS.hint(sk, g))}</span></th>`).join('')}<th class="barcol">Répartition</th></tr></thead><tbody>${body}</tbody></table>`
+    $('grades').innerHTML = gRows.length > 1 || S.team[sk].tot ? `<table class="vs-table dist sticky1 grades"><thead><tr><th class="pl">Joueur</th><th>Total</th>${gOrder(sk).map((g) => `<th class="zh" style="text-align:center">${VS.gchip(g)}<br><span class="small zl">${VS.esc(VS.hint(sk, g))}</span></th>`).join('')}<th class="barcol">Répartition</th></tr></thead><tbody>${body}</tbody></table>`
       : `<div class="empty-note">Aucune action « ${label} » pour ce filtre.</div>`;
     $('gNote').textContent = G_NOTES[sk];
+    // Téléphone : les titres de colonnes se réduisent au symbole, leur sens est rappelé ici.
+    $('gLegend').innerHTML = gOrder(sk).map((g) => `<span>${VS.gchip(g)} ${VS.esc(VS.hint(sk, g))}</span>`).join('');
   }
   $('btnGradesCsv').onclick = () => {
     if (!gRows.length) return;
