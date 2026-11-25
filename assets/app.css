@@ -260,7 +260,7 @@ table.vs-table{width:100%;border-collapse:collapse;font-size:13px}
   .dash .vs-table.sticky1 tr.rot-worst td:first-child{background:linear-gradient(rgba(239,68,68,.08),rgba(239,68,68,.08)) var(--panel)}
   .dash .vs-table td.pl{max-width:98px;overflow:hidden;text-overflow:ellipsis}
   .dash .vs-table td.pl .pos{display:none}
-  .dash .vs-table td.pl.wrap{white-space:normal;min-width:104px;max-width:124px;line-height:1.25}
+  .dash .vs-table td.pl.twrap{white-space:normal;min-width:104px;max-width:124px;line-height:1.25}
   .dash .vs-table .zlbl{display:none}
   .dash .dist td.z{min-width:46px;padding:6px 3px}
   .dash .dist th.zh{white-space:normal;min-width:46px;padding:6px 3px;line-height:1.2;vertical-align:bottom}
