@@ -69,11 +69,7 @@
     <div class="panel neg"><h3>Points à travailler</h3><ul id="neg"></ul></div>
   </div>
   <section class="panel b-sect"><h3>Le match, set par set</h3><div class="story" id="story"></div></section>
-  <div class="grid2b">
-    <section class="panel b-sect"><h3>Moments clés</h3><ul class="keys" id="keys"></ul></section>
-    <section class="panel b-sect"><h3>Les meilleurs du match</h3><div class="mvp" id="mvp"></div>
-      <p class="muted small" style="margin:8px 0 0">Réception : joueurs avec au moins 10 réceptions, classés au pourcentage de positives.</p></section>
-  </div>
+  <section class="panel b-sect"><h3>Moments clés</h3><ul class="keys" id="keys"></ul></section>
   <p class="muted small b-note" id="bNote"></p>
 </div>
 <script src="assets/core.js?v=20261125j"></script>
@@ -358,19 +354,6 @@
     if (longR.length >= 6) { const w = longR.filter((r) => r.w === 'us').length; keys.push(`<b>Échanges longs</b> (au moins deux attaques de notre côté) : ${sc(w, longR.length - w)}${w / longR.length >= 0.55 ? ' : on tient la distance' : w / longR.length < 0.45 ? ' : on craque quand ça dure' : ''}.`); }
     $('keys').innerHTML = keys.length ? keys.map((k) => `<li>${k}</li>`).join('') : '<li class="muted">Pas assez de points saisis.</li>';
 
-    // Meilleur marqueur, meilleur réceptionneur, meilleur bloqueur
-    const PL = M.S.players;
-    const parts = (d) => [[d.kill, 'en attaque'], [d.blkPts, 'au contre'], [d.ace, d.ace > 1 ? 'aces' : 'ace']].filter(([k]) => k).map(([k, l]) => `${k} ${l}`).join(', ');
-    const top3 = (arr, key) => arr.sort(key).slice(0, 3);
-    const scorers = top3(PL.filter((p) => p.d.pts >= 3), (a, b) => b.d.pts - a.d.pts || a.d.errs - b.d.errs);
-    const recvs = top3(PL.filter((p) => p.d.recTot >= 10), (a, b) => b.d.recPosPct - a.d.recPosPct || b.d.recTot - a.d.recTot);
-    const blks = top3(PL.filter((p) => p.d.blkPts >= 1), (a, b) => b.d.blkPts - a.d.blkPts || a.d.blkTot - b.d.blkTot);
-    const row = (i, p, big, dt) => `<div class="mv"><div class="rk">${i + 1}</div><div><div class="nm">${name(p.num)}</div><div class="dt">${dt}</div></div><div class="sc2">${big}</div></div>`;
-    const group = (title, arr, f) => arr.length ? `<div class="mg"><div class="lb">${title}</div>${arr.map((p, i) => row(i, p, ...f(p))).join('')}</div>` : '';
-    const html = group('Marqueurs', scorers, (p) => [p.d.pts, `${parts(p.d)}`])
-      + group('Réception', recvs, (p) => [P(p.d.recPosPct), `${p.d.recTot} réceptions, dont ${P(p.d.recPerfPct)} parfaites${p.d.recErr ? `, ${p.d.recErr} ace${p.d.recErr > 1 ? 's' : ''} subi${p.d.recErr > 1 ? 's' : ''}` : ''}`])
-      + group('Contre', blks, (p) => [p.d.blkPts, `${p.d.blkPts} point${p.d.blkPts > 1 ? 's' : ''} sur ${p.d.blkTot} ballon${p.d.blkTot > 1 ? 's' : ''} touché${p.d.blkTot > 1 ? 's' : ''} au contre`]);
-    $('mvp').innerHTML = html || '<div class="empty-note">Pas assez d’actions saisies.</div>';
   }
 
   function render() {
