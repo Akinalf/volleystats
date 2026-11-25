@@ -294,7 +294,7 @@
         const bg = `background:rgba(255,183,3,${(p * 0.75).toFixed(2)})`;
         return s.length ? clip(s.map((x) => x.set), `${label} → zone ${z}`, `${Math.round(p * 100)} %<small>${s.length}</small>`).replace('<td class="', `<td style="${bg}" class="z `) : '<td class="z muted">–</td>'; }).join('');
     };
-    const rowOf = (l, sub, shown, sub2) => (sub.length ? `<tr><td class="pl twrap"${sub2 ? ' style="padding-left:22px"' : ''}>${VS.esc(shown || l)}</td><td>${sub.length}</td>${cell(sub, l)}</tr>` : '');
+    const rowOf = (l, sub, shown, sub2) => (sub.length ? `<tr><td class="pl twrap"${sub2 ? ' style="padding-left:38px"' : ''}>${VS.esc(shown || l)}</td><td>${sub.length}</td>${cell(sub, l)}</tr>` : '');
     const bySetter = list.filter((x) => isSetter(x.set.player)), others = list.filter((x) => !isSetter(x.set.player));
     const recRows = ctxs.slice(0, 4).map(([k, l, sh]) => rowOf(l, bySetter.filter((x) => x.ctx === k), sh, true)).join('');
     const rows = (recRows ? `<tr class="grp-row"><td class="pl twrap" colspan="${Z.length + 2}"><b>Après réception</b></td></tr>${recRows}` : '')
