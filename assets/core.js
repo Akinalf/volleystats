@@ -428,7 +428,7 @@
       } },
     ]);
   }
-  const LOGO = '<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 2a10 10 0 0 0 0 20M2.5 9.5c5 0 9 2 12 7M21.5 9.5c-5-1-10 0-14 4"/></svg>';
+  const LOGO = '<img src="assets/icons/favicon-64.png?v=1" width="26" height="26" alt="" style="border-radius:6px;display:block">';
   function header(page, m) {
     // Rôle : l’admin (code validé, voir auth.js) a la navigation complète ; un visiteur ne fait que consulter.
     // Masquer des liens n’est que de l’ergonomie : les écritures sont protégées côté serveur.
