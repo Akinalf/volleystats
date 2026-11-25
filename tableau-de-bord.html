@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="theme-color" content="#0a1324">
 <title>Tableau de bord — VolleyStats</title>
-<link rel="stylesheet" href="assets/app.css?v=20261125c">
+<link rel="stylesheet" href="assets/app.css?v=20261125d">
 <style>
   .wrap{padding:8px 16px 30px;display:flex;flex-direction:column;gap:14px}
   .sect{display:flex;flex-direction:column;gap:14px;min-width:0}
@@ -34,7 +34,10 @@
   .dist-wrap{display:grid;grid-template-columns:minmax(0,1fr) 280px;gap:16px;align-items:start}
   @media (max-width:1100px){.dist-wrap{grid-template-columns:minmax(0,1fr)}}
   .eff-wrap{display:flex;flex-wrap:wrap;gap:18px 28px;align-items:flex-start}
-  .eff-wrap>.table-wrap{flex:1 1 560px;max-width:820px;min-width:0}
+  .eff-wrap>.table-wrap{flex:1 1 560px;min-width:0}
+  .g-note{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:5px 18px;line-height:1.35}.g-note span{display:flex;gap:6px;align-items:baseline}
+  .eff-m{display:none;flex:1 1 320px;min-width:0}
+  @media(max-width:760px){.eff-m{display:block}}
   .vs-table tr.rot-best td{background:rgba(34,197,94,.08)}
   .vs-table tr.rot-worst td{background:rgba(239,68,68,.08)}
 </style>
@@ -67,7 +70,7 @@
     <div class="tabs" id="gTabs"></div>
     <div class="g-legend" id="gLegend"></div>
     <div class="table-wrap" id="grades"></div>
-    <div class="head-actions" style="margin-top:8px;justify-content:space-between"><span class="muted small" id="gNote"></span><button class="vs-btn sm desk-only" id="btnGradesCsv">Exporter ce tableau (CSV)</button></div>
+    <div class="head-actions" style="margin-top:8px;justify-content:space-between;align-items:flex-start"><div class="muted small" id="gNote" style="flex:1;min-width:0"></div><button class="vs-btn sm desk-only" id="btnGradesCsv">Exporter ce tableau (CSV)</button></div>
   </div>
   <div class="panel" id="s-joueurs"><div class="panel-h"><h3>Synthèse par joueur</h3><span class="muted small">Eff. attaque = (points − fautes − contrées) / attaques, balles faciles exclues · Passe : nombre de passes vers la zone cible</span></div>
     <div class="chips grp-chips mob-only" id="tGrp" role="tablist" aria-label="Groupe de colonnes"></div>
@@ -82,10 +85,10 @@
     <div class="panel" id="s-rot" style="grid-column:1/-1"><h3>Rotations <span class="muted small">(position du passeur)</span></h3><div id="chRot"></div></div>
   </div>
 </div>
-<script src="assets/core.js?v=20261125c"></script>
-<script src="assets/config.js?v=20261125c"></script>
-<script src="assets/auth.js?v=20261125c"></script>
-<script src="assets/sync.js?v=20261125c"></script>
+<script src="assets/core.js?v=20261125d"></script>
+<script src="assets/config.js?v=20261125d"></script>
+<script src="assets/auth.js?v=20261125d"></script>
+<script src="assets/sync.js?v=20261125d"></script>
 <script>
 (function () {
   const $ = (id) => document.getElementById(id);
@@ -298,20 +301,24 @@
     $('dist').innerHTML = `<div class="dist-wrap"><div class="table-wrap"><table class="vs-table dist sticky1"><thead><tr><th class="pl">Situation</th><th>Passes</th>${Z.map((z) => `<th class="zh" style="text-align:center">Zone ${z}<br><span class="small">${VS.esc(VS.TARGETS[z])}</span></th>`).join('')}</tr></thead><tbody>${rows}${totRow}</tbody></table></div>
       <div><div class="muted small" style="margin-bottom:6px">Répartition globale (filet en haut)</div><div class="court-mini">${courtCells}</div></div></div>
       <h3 style="margin-top:14px">Efficacité de l'attaque selon la zone de passe</h3>
-      <div class="eff-wrap"><div class="table-wrap"><table class="vs-table sticky1"><thead><tr><th class="pl">Zone</th><th>Passes</th><th>Attaques</th><th title="Renvoi à 10 doigts ou en manchette après la passe : hors efficacité">Balles faciles</th><th>Points</th><th>Fautes + contrées</th><th>Réussite</th><th>Efficacité</th></tr></thead><tbody>
-      ${eff.filter((x) => x.n).map((x) => `<tr><td class="pl">Zone ${x.z}<span class="zlbl"> · ${VS.esc(VS.TARGETS[x.z])}</span></td><td>${x.n}</td><td>${x.at.length}</td><td>${x.fb || '–'}</td>${clip(x.at.filter((a) => a.grade === '#'), `Attaques gagnantes après passe en zone ${x.z}`, x.k)}${clip(x.at.filter((a) => a.grade === '=' || a.grade === '/'), `Attaques ratées après passe en zone ${x.z}`, x.err)}<td>${VS.pct(x.kp)}</td><td><b>${VS.pct(x.eff)}</b></td></tr>`).join('')}
-      </tbody></table></div>${effChart(eff)}</div><p class="muted small">La situation est déterminée par notre action juste avant la passe dans l'échange. L'attaque prise en compte est celle qui suit immédiatement la passe ; une balle facile après la passe n'entre pas dans l'efficacité.</p>`;
+      <div class="eff-wrap"><div class="table-wrap"><table class="vs-table sticky1"><thead><tr><th class="pl">Zone</th><th>Passes</th><th>Attaques</th><th title="Renvoi à 10 doigts ou en manchette après la passe : hors efficacité">Balles faciles</th><th>Points</th><th>Fautes + contrées</th><th>Réussite</th><th>Efficacité</th><th class="barcol" style="min-width:300px">Répartition des attaques</th></tr></thead><tbody>
+      ${eff.filter((x) => x.n).map((x) => `<tr><td class="pl">Zone ${x.z}<span class="zlbl"> · ${VS.esc(VS.TARGETS[x.z])}</span></td><td>${x.n}</td><td>${x.at.length}</td><td>${x.fb || '–'}</td>${clip(x.at.filter((a) => a.grade === '#'), `Attaques gagnantes après passe en zone ${x.z}`, x.k)}${clip(x.at.filter((a) => a.grade === '=' || a.grade === '/'), `Attaques ratées après passe en zone ${x.z}`, x.err)}<td>${VS.pct(x.kp)}</td><td><b>${VS.pct(x.eff)}</b></td><td class="barcol">${effBar(x)}</td></tr>`).join('')}
+      </tbody></table><div class="desk-only">${EFF_LEGEND}</div></div><div class="eff-m">${effChart(eff)}</div></div><p class="muted small">La situation est déterminée par notre action juste avant la passe dans l'échange. L'attaque prise en compte est celle qui suit immédiatement la passe ; une balle facile après la passe n'entre pas dans l'efficacité.</p>`;
   }
   /* Graphique : pour chaque zone, part des attaques en point / jeu continue / faute ou contrée, efficacité au bout. */
+  // Sur PC, la barre est une colonne du tableau (alignée sur sa ligne) ; sur téléphone, le graphique est sous le tableau.
+  const EFF_C = { k: '#22c55e', c: '#64748b', e: '#ef4444' };
+  const EFF_LEGEND = `<div class="muted small" style="display:flex;gap:12px;flex-wrap:wrap;margin-top:6px">${[[EFF_C.k, 'Points'], [EFF_C.c, 'Jeu continue'], [EFF_C.e, 'Fautes + contrées']].map(([c, l]) => `<span><i style="display:inline-block;width:10px;height:10px;border-radius:2px;background:${c};margin-right:4px;vertical-align:-1px"></i>${l}</span>`).join('')}<span>· efficacité et nombre d'attaques au bout</span></div>`;
+  function effBar(x, label) {
+    const t = x.at.length; if (!t) return '';
+    const C = EFF_C, cont = t - x.k - x.err;
+    const seg = (n, c, tt) => (n ? `<i style="width:${(100 * n) / t}%;background:${c}" title="${tt} : ${n} (${Math.round((100 * n) / t)} %)"></i>` : '');
+    return `<div class="bar-row" style="grid-template-columns:${label ? '60px ' : ''}minmax(0,1fr) 104px;margin:0" title="Zone ${x.z} · ${t} attaque(s) : ${x.k} point(s), ${cont} jeu continue, ${x.err} faute(s) + contrée(s)">${label ? `<span>Zone ${x.z}</span>` : ''}<div class="bar" style="height:18px">${seg(x.k, C.k, 'Points')}${seg(cont, C.c, 'Jeu continue')}${seg(x.err, C.e, 'Fautes + contrées')}</div><span class="v"><b style="color:${x.eff > 0 ? C.k : x.eff < 0 ? C.e : 'inherit'}">${VS.pct(x.eff)}</b> <span class="muted">· ${t} att.</span></span></div>`;
+  }
   function effChart(eff) {
     const rows = eff.filter((x) => x.at.length);
     if (!rows.length) return '';
-    const C = { k: '#22c55e', c: '#64748b', e: '#ef4444' };
-    const seg = (n, tot, c, t) => (n ? `<i style="width:${(100 * n) / tot}%;background:${c}" title="${t} : ${n} (${Math.round((100 * n) / tot)} %)"></i>` : '');
-    return `<div style="flex:1 1 320px;max-width:460px;min-width:0">
-      ${rows.map((x) => { const t = x.at.length, cont = t - x.k - x.err;
-        return `<div class="bar-row" style="grid-template-columns:60px minmax(0,1fr) 56px;margin:9px 0" title="Zone ${x.z} · ${t} attaque(s) : ${x.k} point(s), ${cont} jeu continue, ${x.err} faute(s) + contrée(s)"><span>Zone ${x.z}</span><div class="bar" style="height:20px">${seg(x.k, t, C.k, 'Points')}${seg(cont, t, C.c, 'Jeu continue')}${seg(x.err, t, C.e, 'Fautes + contrées')}</div><span class="v" style="color:${x.eff > 0 ? C.k : x.eff < 0 ? C.e : 'inherit'}"><b>${VS.pct(x.eff)}</b></span></div>`; }).join('')}
-      <div class="muted small" style="display:flex;gap:12px;flex-wrap:wrap;margin-top:6px">${[[C.k, 'Points'], [C.c, 'Jeu continue'], [C.e, 'Fautes + contrées']].map(([c, l]) => `<span><i style="display:inline-block;width:10px;height:10px;border-radius:2px;background:${c};margin-right:4px;vertical-align:-1px"></i>${l}</span>`).join('')}<span>· efficacité au bout</span></div></div>`;
+    return `<div>${rows.map((x) => `<div style="margin:9px 0">${effBar(x, true)}</div>`).join('')}${EFF_LEGEND}</div>`;
   }
   function hbars(items, fmt, max) {
     return items.map((it) => `<div class="bar-row"><span title="${VS.esc(it.label)}">${VS.esc(it.label)}</span><div class="bar">${it.parts.map((p) => `<i style="width:${Math.max(0, (p.v / max) * 100)}%;background:${p.c}" title="${VS.esc(p.t || '')}"></i>`).join('')}</div><span class="v">${fmt(it)}</span></div>`).join('') || '<div class="empty-note">Pas assez de données.</div>';
@@ -442,7 +449,12 @@
     }).join('');
     $('grades').innerHTML = gRows.length > 1 || S.team[sk].tot ? `<table class="vs-table dist sticky1 grades"><thead><tr><th class="pl">Joueur</th><th>Total</th>${gOrder(sk).map((g) => `<th class="zh" style="text-align:center">${VS.gchip(g)}<br><span class="small zl">${VS.esc(VS.hint(sk, g))}</span></th>`).join('')}<th class="barcol">Répartition</th></tr></thead><tbody>${body}</tbody></table>`
       : `<div class="empty-note">Aucune action « ${label} » pour ce filtre.</div>`;
-    $('gNote').textContent = G_NOTES[sk];
+    // Note détaillée : une ligne par qualité (pastille + sens), plus lisible qu'une longue phrase.
+    const [, nBody = ''] = G_NOTES[sk].split(/ : (.*)/s);
+    const items = nBody.split(' · '), extra = [];
+    const last = items.pop() || '', cut = last.indexOf('. ');
+    items.push(cut >= 0 ? last.slice(0, cut) : last); if (cut >= 0) extra.push(last.slice(cut + 2));
+    $('gNote').innerHTML = `<div class="g-note">${items.map((it) => { const g = it.trim()[0], d = it.trim().slice(1).trim().replace(/\.$/, ''); return `<span>${VS.GRADES[g] ? VS.gchip(g) : VS.esc(g)} ${VS.esc(d)}</span>`; }).join('')}</div>${extra.length ? `<div class="muted small" style="margin-top:4px">${VS.esc(extra.join(' '))}</div>` : ''}`;
     // Téléphone : les titres de colonnes se réduisent au symbole, leur sens est rappelé ici.
     $('gLegend').innerHTML = gOrder(sk).map((g) => `<span>${VS.gchip(g)} ${VS.esc(VS.hint(sk, g))}</span>`).join('');
   }
