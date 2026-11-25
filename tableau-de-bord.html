@@ -285,7 +285,8 @@
     const fsel = $('setterSel').value;
     const list = all.filter((x) => x.set.target && (fsel === 'all' || x.set.player === +fsel));
     if (!list.length) { $('dist').innerHTML = '<div class="empty-note">Aucune passe avec zone visée pour ce filtre.</div>'; return; }
-    const ctxs = [['R#', 'Passe après réception parfaite'], ['R+', 'Passe après réception bonne'], ['R!', 'Passe après réception moyenne'], ['R-', 'Passe après réception négative'], ['T', 'Passe après défense / contre'], ['X', 'Passe dans une autre situation']];
+    // [clé, libellé complet (détail au clic), libellé affiché]. Les réceptions sont groupées sous un intertitre.
+    const ctxs = [['R#', 'Passe après réception parfaite', 'Parfaite'], ['R+', 'Passe après réception bonne', 'Bonne'], ['R!', 'Passe après réception moyenne', 'Moyenne'], ['R-', 'Passe après réception négative', 'Négative'], ['T', 'Passe après défense / contre', 'Après défense / contre'], ['X', 'Passe dans une autre situation', 'Autre situation']];
     const Z = VS.TARGET_ORDER;
     const cell = (sub, label) => {
       const tot = sub.length;
@@ -293,9 +294,11 @@
         const bg = `background:rgba(255,183,3,${(p * 0.75).toFixed(2)})`;
         return s.length ? clip(s.map((x) => x.set), `${label} → zone ${z}`, `${Math.round(p * 100)} %<small>${s.length}</small>`).replace('<td class="', `<td style="${bg}" class="z `) : '<td class="z muted">–</td>'; }).join('');
     };
-    const rowOf = (l, sub) => (sub.length ? `<tr><td class="pl twrap">${l.replace(/^Passe a/, '<span class="desk-only">Passe a</span><span class="mob-only">A</span>')}</td><td>${sub.length}</td>${cell(sub, l)}</tr>` : '');
+    const rowOf = (l, sub, shown, sub2) => (sub.length ? `<tr><td class="pl twrap"${sub2 ? ' style="padding-left:22px"' : ''}>${VS.esc(shown || l)}</td><td>${sub.length}</td>${cell(sub, l)}</tr>` : '');
     const bySetter = list.filter((x) => isSetter(x.set.player)), others = list.filter((x) => !isSetter(x.set.player));
-    const rows = ctxs.map(([k, l]) => rowOf(l, bySetter.filter((x) => x.ctx === k))).join('') + rowOf('Passe de non-passeur', others);
+    const recRows = ctxs.slice(0, 4).map(([k, l, sh]) => rowOf(l, bySetter.filter((x) => x.ctx === k), sh, true)).join('');
+    const rows = (recRows ? `<tr class="grp-row"><td class="pl twrap" colspan="${Z.length + 2}"><b>Après réception</b></td></tr>${recRows}` : '')
+      + ctxs.slice(4).map(([k, l, sh]) => rowOf(l, bySetter.filter((x) => x.ctx === k), sh)).join('') + rowOf('Passe de non-passeur', others, 'Passe d’un non-passeur');
     const totRow = `<tr><td class="pl twrap"><b>Toutes les passes</b></td><td><b>${list.length}</b></td>${cell(list, 'Toutes les passes')}</tr>`;
     const eff = Z.map((z) => {
       const s = list.filter((x) => x.set.target === z), at = s.filter((x) => x.attack).map((x) => x.attack);
@@ -304,7 +307,7 @@
     });
     const totals = list.length;
     const courtCells = [4, 3, 2, 5, 6, 1].map((z) => { const n = list.filter((x) => x.set.target === z).length, p = totals ? n / totals : 0; return `<div style="background:rgba(255,183,3,${(0.1 + p * 0.8).toFixed(2)})">${Math.round(p * 100)} %<small>Zone ${z}</small></div>`; }).join('');
-    $('dist').innerHTML = `<div class="dist-wrap"><div class="table-wrap"><table class="vs-table dist sticky1"><thead><tr><th class="pl">Situation</th><th>Passes</th>${Z.map((z) => `<th class="zh" style="text-align:center">Zone ${z}<br><span class="small">${VS.esc(VS.TARGETS[z])}</span></th>`).join('')}</tr></thead><tbody>${rows}${totRow}</tbody></table></div>
+    $('dist').innerHTML = `<div class="dist-wrap"><div class="table-wrap"><table class="vs-table dist sticky1"><thead><tr><th class="pl">Passe…</th><th>Passes</th>${Z.map((z) => `<th class="zh" style="text-align:center">Zone ${z}<br><span class="small">${VS.esc(VS.TARGETS[z])}</span></th>`).join('')}</tr></thead><tbody>${rows}${totRow}</tbody></table></div>
       <div><div class="muted small" style="margin-bottom:6px">Répartition globale (filet en haut)</div><div class="court-mini">${courtCells}</div></div></div>
       <h3 style="margin-top:14px">Efficacité de l'attaque selon la zone de passe</h3>
       <div class="eff-wrap"><div class="table-wrap"><table class="vs-table sticky1"><thead><tr><th class="pl">Zone</th><th>Passes</th><th>Attaques</th><th title="Renvoi à 10 doigts ou en manchette après la passe : hors efficacité">Balles faciles</th><th>Points</th><th>Fautes + contrées</th><th title="Sur 100 attaques, combien font le point">Réussite</th><th title="Comme la réussite, mais chaque attaque ratée (faute ou contrée) retire un point. Au-dessus de 0 : l'attaque rapporte plus qu'elle ne coûte">Efficacité</th><th class="barcol" style="min-width:300px;text-align:center">Répartition des attaques</th></tr></thead><tbody>
