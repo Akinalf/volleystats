@@ -35,7 +35,9 @@
   @media (max-width:1100px){.dist-wrap{grid-template-columns:minmax(0,1fr)}}
   .eff-wrap{display:flex;flex-wrap:wrap;gap:18px 28px;align-items:flex-start}
   .eff-wrap>.table-wrap{flex:1 1 560px;min-width:0}
-    .eff-m{display:none;flex:1 1 320px;min-width:0}
+    .rot-wrap{display:flex;flex-wrap:wrap;gap:12px 28px;align-items:flex-start}.rot-wrap>.table-wrap{flex:1 1 560px;max-width:900px;min-width:0}
+  .rot-legend{flex:0 1 260px;margin:0;padding:0;list-style:none;display:flex;flex-direction:column;gap:7px;line-height:1.35}.rot-legend b{color:var(--text);font-weight:600}
+  .eff-m{display:none;flex:1 1 320px;min-width:0}
   @media(max-width:760px){.eff-m{display:block}}
   .vs-table tr.rot-best td{background:rgba(34,197,94,.08)}
   .vs-table tr.rot-worst td{background:rgba(239,68,68,.08)}
@@ -363,9 +365,9 @@
     });
     if (!pts.length) { $('chRot').innerHTML = '<div class="empty-note">Aucun point.</div>'; return; }
     const best = Math.max(...rows.map((x) => x.bal)), worst = Math.min(...rows.map((x) => x.bal));
-    $('chRot').innerHTML = `<div class="table-wrap"><table class="vs-table sticky1" style="max-width:900px"><thead><tr><th class="pl">Rotation</th><th><span class="desk-only">Points joués</span><span class="mob-only">Joués</span></th><th>Gagnés</th><th>Perdus</th><th>Bilan</th><th title="Points gagnés quand l'adversaire sert">Side-out</th><th title="Points gagnés sur notre service">Break</th></tr></thead><tbody>
+    $('chRot').innerHTML = `<div class="rot-wrap"><div class="table-wrap"><table class="vs-table sticky1"><thead><tr><th class="pl">Rotation</th><th><span class="desk-only">Points joués</span><span class="mob-only">Joués</span></th><th>Gagnés</th><th>Perdus</th><th>Bilan</th><th title="Points gagnés quand l'adversaire sert">Side-out</th><th title="Points gagnés sur notre service">Break</th></tr></thead><tbody>
       ${rows.map((x) => `<tr class="${x.n && x.bal === best ? 'rot-best' : x.n && x.bal === worst ? 'rot-worst' : ''}"><td class="pl"><span class="desk-only">Passeur en </span>P${x.r}</td><td>${x.n}</td><td>${x.won}</td>${clip(x.l.filter((e) => e.winner === 'them'), `Points perdus — passeur en P${x.r}`, x.n - x.won)}<td><b style="color:${x.bal >= 0 ? '#86efac' : '#fca5a5'}">${x.bal >= 0 ? '+' : ''}${x.bal}</b></td><td>${x.rec ? Math.round((100 * x.recW) / x.rec) + ' %' : '–'} <span class="muted small">${x.recW}/${x.rec}</span></td><td>${x.srv ? Math.round((100 * x.srvW) / x.srv) + ' %' : '–'} <span class="muted small">${x.srvW}/${x.srv}</span></td></tr>`).join('')}
-      </tbody></table></div><p class="muted small">Rotation = position du passeur (P1 à P6). Side-out : points gagnés quand l'adversaire sert. Break : points gagnés sur notre service. Vert = meilleure rotation, rouge = la plus faible.</p>`;
+      </tbody></table></div><ul class="rot-legend muted small"><li><b>Rotation</b> : position du passeur (P1 à P6)</li><li><b>Side-out</b> : points gagnés quand l'adversaire sert</li><li><b>Break</b> : points gagnés sur notre service</li><li><span style="color:#86efac">Vert</span> : meilleure rotation</li><li><span style="color:#fca5a5">Rouge</span> : rotation la plus faible</li></ul></div>`;
   }
 
   $('btnCsv').onclick = () => { if (m) VS.exportCSV(m, allEv); };
