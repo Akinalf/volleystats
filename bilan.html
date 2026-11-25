@@ -40,7 +40,7 @@
 <div class="page-head">
   <div class="ph-title">
     <h1>Bilan du match</h1>
-    <p class="muted ph-desc">Résumé pour le coach : points positifs, points à travailler et priorités. Généré à partir des stats saisies.</p>
+    <p class="muted ph-desc">Résumé pour le coach : points positifs et points à travailler. Généré à partir des stats saisies.</p>
   </div>
   <div class="head-actions">
     <label class="muted small fld fld-match"><span>Match</span> <select class="src" id="matchSel" style="background:var(--panel2);color:var(--text);border:1px solid var(--line);border-radius:7px;padding:6px;max-width:320px"></select></label>
@@ -54,7 +54,6 @@
     <div class="panel pos"><h3>Points positifs</h3><ul id="pos"></ul></div>
     <div class="panel neg"><h3>Points à travailler</h3><ul id="neg"></ul></div>
   </div>
-  <section class="panel b-sect"><h3>À travailler en priorité</h3><ol class="prio" id="prio"></ol></section>
   <section class="panel b-sect"><h3>Set par set</h3><div class="table-wrap" id="tSets"></div></section>
   <section class="panel b-sect"><h3>Attaque par joueur</h3><div class="table-wrap" id="tAtt"></div>
     <p class="muted small" style="margin:8px 0 0">Efficacité = (points − fautes − contrées) ÷ attaques. Repères club : au-dessus de 30 %, très bon ; en dessous de 15 %, à travailler.</p></section>
@@ -286,7 +285,6 @@
     const li = (arr, empty) => arr.length ? arr.map((x) => `<li>${x.h}</li>`).join('') : `<li class="muted">${empty}</li>`;
     $('pos').innerHTML = li(F.pos, 'Rien de marquant ressort des stats.');
     $('neg').innerHTML = li(F.neg, 'Rien de marquant ressort des stats.');
-    $('prio').innerHTML = F.prio.length ? F.prio.map((x) => `<li>${x.h}<span>${x.s}</span></li>`).join('') : '<li class="muted">Pas de priorité nette sur ce match.</li>';
 
     // Set par set
     const cls = (v, good, bad) => (v == null ? '' : v >= good ? 'g' : v < bad ? 'b' : '');
@@ -310,7 +308,7 @@
   $('btnCopy').addEventListener('click', () => {
     const txt = (el) => el.innerText.trim();
     const items = (id) => [...$(id).children].map((li) => '• ' + li.innerText.replace(/\n+/g, ' — ').trim()).join('\n');
-    const text = `BILAN — ${txt($('bHead').querySelector('.res'))} (${[...$('bHead').querySelectorAll('.setchips span')].map((s) => s.textContent).join(', ')})\n\n${txt($('bHead').querySelector('.lead'))}\n\nPOINTS POSITIFS\n${items('pos')}\n\nPOINTS À TRAVAILLER\n${items('neg')}\n\nPRIORITÉS\n${items('prio')}\n\nDétail : ${location.href.split('#')[0]}`;
+    const text = `BILAN — ${txt($('bHead').querySelector('.res'))} (${[...$('bHead').querySelectorAll('.setchips span')].map((s) => s.textContent).join(', ')})\n\n${txt($('bHead').querySelector('.lead'))}\n\nPOINTS POSITIFS\n${items('pos')}\n\nPOINTS À TRAVAILLER\n${items('neg')}\n\nDétail : ${location.href.split('#')[0]}`;
     const done = () => VS.toast('Texte copié', 'ok');
     if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(text).then(done, () => VS.modal('Texte du bilan', `<textarea rows="16" style="width:100%">${esc(text)}</textarea>`));
     else VS.modal('Texte du bilan', `<textarea rows="16" style="width:100%">${esc(text)}</textarea>`);
